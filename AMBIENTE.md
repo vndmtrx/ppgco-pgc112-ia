@@ -72,4 +72,6 @@ pip install -r requirements.txt
 
 # 4. Executar os testes automatizados
 pytest
+python -m doctest flips.py -v
+python -m unittest discover -s tests -p "test_*.py" -v
 ```

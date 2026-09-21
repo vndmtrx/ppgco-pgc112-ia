@@ -47,7 +47,13 @@ Optamos por manter o código o mais simples e direto possível, apenas com funç
 
 ## 2. Instruções de Execução dos Testes
 
-Para rodar os testes unitários:
+Para rodar todos os testes (unitários e doctests) com Pytest:
+
+```bash
+pytest
+```
+
+Para rodar os testes unitários via biblioteca padrão:
 
 ```bash
 python -m unittest discover -s tests -p "test_*.py" -v
