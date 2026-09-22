@@ -1,4 +1,4 @@
-# Metodologia — Parte 2: Otimização com Gradiente Descendente
+# Metodologia: Parte 2 (Otimização com Gradiente Descendente)
 
 ## 1. Formulação Matemática e Modelagem
 

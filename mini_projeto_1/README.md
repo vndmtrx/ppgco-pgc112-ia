@@ -1,7 +1,7 @@
 # Mini-projeto: Buscas Clássicas e Otimização
 
 **Data:** 25 de Agosto de 2026  
-**Disciplina:** Inteligência Artificial — PPGCO / UFU  
+**Disciplina:** Inteligência Artificial (PPGCO / UFU)  
 
 ---
 

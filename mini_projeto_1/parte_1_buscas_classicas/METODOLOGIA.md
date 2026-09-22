@@ -1,4 +1,4 @@
-# Metodologia — Parte 1: Buscas Clássicas
+# Metodologia: Parte 1 (Buscas Clássicas)
 
 ## 1. Definições e Modelagem do Problema
 
@@ -61,7 +61,111 @@ Para simplificar o entendimento das operações e facilitar futuras consultas, a
 
 ---
 
-## 2. Instruções de Execução dos Testes
+## 2. Algoritmo BFS (Busca em Largura) - Item C
+
+### Fundamentação Teórica (Russell & Norvig, 4ª Edição)
+
+No livro *Artificial Intelligence: A Modern Approach* (4ª edição), o algoritmo de busca em largura é detalhado no Capítulo 3 (*Solving Problems by Searching*), Seção 3.4 (*Uninformed Search Strategies*), subseção 3.4.1 (*Breadth-first search*, páginas 94-95).
+
+As principais características teóricas aplicadas ao nosso problema:
+1. **Estrutura de Dados do Nó (`No`, Seção 3.3.2, p. 91):** Cada nó da árvore de busca mantém quatro componentes:
+   - `estado`: o valor numérico (inteiro representando a sequência de bits);
+   - `pai`: referência para o nó pai que o gerou;
+   - `acao`: a operação de flip executada para chegar até ele (`("bit", pos)` ou `("bloco", pos, n)`);
+   - `custo`: custo acumulado do caminho percorrido até o nó ($g$).
+2. **Otimalidade para Custos Uniformes:** Como todas as operações de flip (1 bit ou bloco) têm custo idêntico ($c = 1$), a busca em largura garante encontrar a solução de menor custo total (menor número de passos).
+3. **Teste de Objetivo Antecipado:** O teste de objetivo é realizado no momento da **geração** do nó filho (e não no momento de sua expansão/desenfileiramento), economizando memória e tempo de processamento.
+
+---
+
+### Pseudocódigo Canônico (Figura 3.9, p. 95)
+
+```text
+function BREADTH-FIRST-SEARCH(problem) returns a solution node or failure
+    node ← NODE(problem.INITIAL)
+    if problem.IS-GOAL(node.STATE) then return node
+    frontier ← a FIFO queue, with node as an element
+    reached ← {problem.INITIAL}
+    while not IS-EMPTY(frontier) do
+        node ← POP(frontier)
+        for each child in EXPAND(problem, node) do
+            s ← child.STATE
+            if problem.IS-GOAL(s) then return child
+            if s is not in reached then
+                add s to reached
+                add child to frontier
+    return failure
+```
+
+---
+
+### Funcionamento da Busca em Largura e Custos Iguais
+
+No meu entendimento, a ideia central da busca em largura (BFS) é explorar as possibilidades em níveis, como uma onda que se espalha a partir do estado inicial:
+- Primeiro, testamos todas as fitas que podem ser alcançadas com 1 operação.
+- Se nenhuma for o objetivo, testamos todas as alcançáveis com 2 operações.
+- Depois com 3 operações, e assim sucessivamente.
+
+No nosso problema, o enunciado define que tanto o flip de 1 bit quanto o flip de bloco têm exatamente o mesmo peso (custo 1). Por conta dessa igualdade de pesos, a busca em largura garante que a primeira vez que encontrarmos a fita de zeros, teremos a solução com a menor quantidade de passos possível.
+
+O funcionamento prático segue estes pontos:
+
+1. **O que cada nó da busca guarda:**
+   - O número inteiro da fita atual (`estado`).
+   - A referência para quem gerou essa fita (`pai`).
+   - A operação executada para chegar até ela (`acao`), seja um flip de 1 bit ou um flip de bloco.
+   - O total de passos acumulados até ali (`custo`).
+
+2. **Geração dos próximos passos a partir do nó atual:**
+   - O algoritmo aplica todas as operações válidas:
+     - Inverter cada bit individualmente.
+     - Inverter cada bloco de bits contíguos (de tamanho 2 até o tamanho total da fita).
+   - Cada operação gera uma nova fita filha para ser avaliada.
+
+3. **Prevenção de ciclos:**
+   - Aplicar duas vezes a mesma operação faz a fita voltar ao estado anterior.
+   - Para não andar em círculos, guardamos as fitas já vistas em um conjunto de visitados (`alcancados`). Fitas repetidas são descartadas na hora.
+
+4. **Chegada ao objetivo:**
+   - O objetivo é a fita totalmente zerada (número zero).
+   - Assim que uma operação gera o zero, a busca encerra imediatamente.
+
+5. **Recuperação da sequência de passos:**
+   - A partir do nó objetivo, seguimos os ponteiros de pai em pai até a raiz.
+   - Invertendo essa ordem, obtemos a sequência exata de operações e o custo total da solução.
+
+---
+
+### Descrição e Mapeamento para a Implementação em Python
+
+Para a implementação do código, mapeamos as estruturas do livro diretamente para o português:
+
+1. **Estrutura do Nó (`No`):**
+   * Representa o `NODE` da Seção 3.3.2 com os campos:
+     * `estado` (`STATE`): inteiro da fita de bits.
+     * `pai` (`PARENT`): referência ao nó gerador (`None` na raiz).
+     * `acao` (`ACTION`): tupla da operação executada (`("bit", pos)` ou `("bloco", pos, n)`).
+     * `custo` (`PATH-COST` ou $g$): custo acumulado do caminho até aquele nó.
+
+2. **Verificação Inicial de Objetivo (`IS-GOAL`):**
+   * Testa se o estado inicial já é o estado final desejado (`eh_objetivo`). Se for, retorna o nó raiz com custo 0 e lista vazia de ações.
+
+3. **Borda (`frontier`) e Conjunto de Visitados (`reached`):**
+   * A `frontier` é implementada como uma fila FIFO (`collections.deque`), inicializada com o nó raiz.
+   * O `reached` é implementado como um `set` de inteiros para checagem de estados visitados, evitando ciclos.
+
+4. **Laço de Busca e Expansão de Sucessores (`EXPAND`):**
+   * Enquanto a fila não estiver vazia, remove o nó mais raso (`node = frontier.popleft()`).
+   * Gera todos os filhos a partir das ações válidas (flips de 1 bit e blocos de $2 \le n \le L$).
+   * Aplica o teste de objetivo antecipado: se o filho atingir o objetivo (fita zerada), retorna o nó imediatamente.
+   * Se o estado do filho ainda não estiver no conjunto de visitados, adiciona o estado ao conjunto e enfileira o nó na borda.
+
+5. **Reconstrução da Solução (`reconstruir_caminho`):**
+   * Percorre os ponteiros `pai` a partir do nó objetivo até a raiz para extrair a sequência ordenada de ações e o custo acumulado total.
+
+---
+
+## 3. Instruções de Execução dos Testes
 
 Para rodar todos os testes (unitários e doctests) com Pytest:
 
@@ -83,7 +187,7 @@ python -m doctest flips.py -v
 
 ---
 
-## 3. Experimentos e Observações
+## 4. Experimentos e Observações
 
 - **Validação das Sub-rotinas (Subitem B):**
   - Criamos 10 testes unitários cobrindo conversão de texto, flips individuais, flips de bloco, reversibilidade, proteção de limites com `IndexError` e o caso de teste inicial do enunciado.
@@ -96,9 +200,10 @@ python -m doctest flips.py -v
 
 ---
 
-## 4. Log de Atividades
+## 5. Log de Atividades
 
 | Data | Atividade | Decisões / Observações |
 | :--- | :--- | :--- |
 | 16/09/2026 | Inicialização | Estrutura de pastas criada e enunciados mapeados. |
 | 20/09/2026 | Sub-rotinas de Flip | Implementação de funções puras com inteiros (`int`), tratamento de limites com `IndexError` e validação com testes unitários e doctests. |
+| 22/09/2026 | Documentação BFS (Item C) | Mapeamento do algoritmo da Seção 3.4.1 (Fig. 3.9) do Russell & Norvig 4ª ed., estrutura de nós e detalhamento passo a passo na metodologia. |
