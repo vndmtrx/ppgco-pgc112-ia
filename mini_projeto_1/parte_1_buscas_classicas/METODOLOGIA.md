@@ -134,16 +134,30 @@ O funcionamento prático segue estes pontos:
    - A partir do nó objetivo, seguimos os ponteiros de pai em pai até a raiz.
    - Invertendo essa ordem, obtemos a sequência exata de operações e o custo total da solução.
 
+### Discussão de Design: Estrutura do Nó (Classes/@dataclass vs. Tuplas Nativas)
+
+Durante a modelagem da árvore de busca do BFS, avaliamos formas de representar os nós:
+
+1. **Primeira ideia (Classes com `@dataclass`):**
+   - Inicialmente, pensamos em modelar o nó através de uma `@dataclass` contendo `estado`, `pai`, `acao` e `custo`.
+   - *Por que descartamos:* O `@dataclass` adiciona decoradores e métodos auxiliares (`__repr__`, `__eq__`, comparações) e adiciona um overhead de instâncias no heap do CPython que são desnecessários para a busca. Como o conjunto de visitados (`reached`) armazena diretamente os inteiros (`set[int]`), não precisávamos de métodos de hashing ou igualdade no nó.
+2. **Segunda ideia (Classes tradicionais com `__init__`):**
+   - Pensamos em uma classe simples sem decoradores apenas para permitir o acesso por atributos (`no.estado`, `no.pai`).
+   - *Por que simplificamos:* Embora mais legível, ainda exigia a alocação de objetos completos de classe a cada expansão de filho.
+3. **Decisão final (Tuplas nativas do CPython):**
+   - No mesmo espírito das funções puras e simplicidade do `flips.py`, decidimos representar cada nó diretamente como uma tupla nativa: `(estado, pai, acao, custo)`.
+   - No CPython, tuplas são estruturas nativas em C de tamanho fixo, extremamente leves na memória e com custo mínimo de instanciação. Como a função do nó é apenas manter o encadeamento com o pai para a reconstrução posterior do caminho, a tupla cumpre o papel canônico do livro com bastante eficiência.
+
 ---
 
 ### Descrição e Mapeamento para a Implementação em Python
 
-Para a implementação do código, mapeamos as estruturas do livro diretamente para o português:
+Para a implementação do código, mapeamos as estruturas do livro diretamente para o português de forma direta e sem classes:
 
-1. **Estrutura do Nó (`No`):**
-   * Representa o `NODE` da Seção 3.3.2 com os campos:
+1. **Estrutura do Nó (Tupla Simples `(estado, pai, acao, custo)`):**
+   * Representa o `NODE` da Seção 3.3.2 usando uma tupla nativa:
      * `estado` (`STATE`): inteiro da fita de bits.
-     * `pai` (`PARENT`): referência ao nó gerador (`None` na raiz).
+     * `pai` (`PARENT`): referência (tupla) ao nó gerador (`None` na raiz).
      * `acao` (`ACTION`): tupla da operação executada (`("bit", pos)` ou `("bloco", pos, n)`).
      * `custo` (`PATH-COST` ou $g$): custo acumulado do caminho até aquele nó.
 
@@ -165,7 +179,36 @@ Para a implementação do código, mapeamos as estruturas do livro diretamente p
 
 ---
 
-## 3. Instruções de Execução dos Testes
+## 3. Instruções de Execução
+
+### Execução do BFS via Terminal (com Métricas e Tempo)
+
+Para executar o BFS diretamente pelo terminal para qualquer sequência:
+
+```bash
+# Se chamado sem argumentos, exibe o guia de uso e exemplos:
+python bfs.py
+
+# Exemplo 1: Informando apenas a sequência inicial (o alvo padrão será zeros):
+python bfs.py 1100111
+
+# Exemplo 2: Informando sequência inicial e alvo customizado:
+python bfs.py 1100000 0000011
+
+# Exemplo 3: Instância completa do enunciado (L=23):
+python bfs.py 00001001000011001100111
+```
+
+O script exibirá:
+- Tamanho $L$ e fitas inicial/desejada;
+- Custo total (número mínimo de operações);
+- Total de nós expandidos e estados visitados;
+- Tempo de resolução com precisão de milissegundos e segundos;
+- Passo a passo com o estado da fita resultante após cada flip.
+
+---
+
+### Execução dos Testes Automatizados
 
 Para rodar todos os testes (unitários e doctests) com Pytest:
 
@@ -183,16 +226,54 @@ Para rodar os testes embutidos nas docstrings (doctests):
 
 ```bash
 python -m doctest flips.py -v
+python -m doctest bfs.py -v
 ```
 
 ---
 
 ## 4. Experimentos e Observações
 
-- **Validação das Sub-rotinas (Subitem B):**
-  - Criamos 10 testes unitários cobrindo conversão de texto, flips individuais, flips de bloco, reversibilidade, proteção de limites com `IndexError` e o caso de teste inicial do enunciado.
-  - Criamos também 10 testes embutidos nas docstrings (doctests).
-  - Todos os testes passaram em tempo inferior a 0.001s no ambiente local e no contêiner Docker oficial.
+### Detalhamento dos Cenários de Teste e Propriedades Provadas
+
+A suíte de testes foi projetada de forma modular, onde cada cenário isola e prova uma propriedade matemática ou comportamental do modelo e do algoritmo:
+
+#### A. Sub-rotinas de Flip (`test_flips.py`)
+1. **Isomorfismo de Representação (`test_carregar_e_formatar`):**
+   - *O que prova:* Prova que converter uma string binária com zeros à esquerda para inteiro e reformatá-la preserva exatamente o tamanho $L$ e os valores posicionais dos bits.
+2. **Uniformidade de Custos (`test_custo_fixo`):**
+   - *O que prova:* Prova que a constante `CUSTO_FLIP` vale estritamente 1 para qualquer operação, atendendo ao enunciado.
+3. **Involutividade e Reversibilidade de 1 Bit (`test_flip_bit_inverte_corretamente`):**
+   - *O que prova:* Prova a propriedade algébrica do XOR ($x \oplus m \oplus m = x$), garantindo que aplicar o mesmo flip duas vezes restaura o estado original.
+4. **Inversão e Reversibilidade em Bloco (`test_flip_bloco_inverte_corretamente`):**
+   - *O que prova:* Prova que a máscara de bloco contíguo afeta exclusivamente a janela $[pos, pos+tamanho\_bloco)$ sem corromper bits adjacentes, e que a operação é perfeitamente reversível.
+5. **Consistência de Casos Limite (`test_flip_bloco_tamanho_um_equivale_ao_flip_bit`):**
+   - *O que prova:* Prova que um flip de bloco com tamanho 1 é identicamente equivalente a um flip de 1 bit para qualquer posição.
+6. **Prevenção de Overflow e Robustez (`test_overflow_*`, `test_caractere_invalido`):**
+   - *O que prova:* Prova que qualquer acesso fora da fita ($< 0$ ou $\ge L$) ou entrada inválida é barrada imediatamente com `IndexError` ou `ValueError`, impedindo a criação de estados fantasmas.
+7. **Instância Oficial do Enunciado (`test_sequencia_enunciado`):**
+   - *O que prova:* Prova a correta interpretação da instância do professor com $L=23$ (`00001001000011001100111`), validando que a inversão do bloco base de 3 bits com custo 1 zera o sufixo `'111'`.
+
+#### B. Algoritmo BFS (`test_bfs.py`)
+1. **Reconstrução da Árvore de Busca (`test_reconstruir_caminho_*`):**
+   - *O que prova:* Prova que o nó raiz resulta em caminho vazio de custo 0 e que o encadeamento de ponteiros de nós pais recupera a ordem cronológica exata das ações ($ação_1 \to ação_2$).
+2. **Cálculo Analítico do Fator de Ramificação (`test_quantidade_de_sucessores_*`):**
+   - *O que prova:* Prova que a função `gerar_sucessores` gera exatamente todas as $L + \frac{L(L-1)}{2} = \frac{L(L+1)}{2}$ ações possíveis sem repetição de blocos unitários, todas com custo 1.
+3. **Teste de Parada Imediata na Raiz (`test_estado_inicial_ja_e_objetivo`):**
+   - *O que prova:* Prova a conformidade com o pseudocódigo canônico de Russell & Norvig, finalizando em $O(1)$ quando $s_0 = s_{alvo}$.
+4. **Soluções Unitárias de 1 Passo (`test_solucao_1_passo_*`):**
+   - *O que prova:* Prova a identificação de soluções ótimas de profundidade $d=1$ tanto para flips individuais quanto de bloco.
+5. **Otimalidade e Desempate de Custos (`test_escolha_otima_bloco_vs_bits`):**
+   - *O que prova:* Prova a garantia teórica fundamental do BFS para custos uniformes: diante da fita `'111'`, que pode ser resolvida com 3 flips individuais (custo 3) ou 1 flip de bloco (custo 1), o BFS obrigatoriamente encontra a solução de custo 1.
+6. **Exploração Multinível e Soluções Ótimas (`test_solucao_multiplos_passos`):**
+   - *O que prova:* Prova que fitas com múltiplos blocos isolados (ex: `'101'`) são exploradas corretamente em níveis sucessivos da fila FIFO, encontrando o custo ótimo 2.
+7. **Generalidade para Alvos Arbitrários (`test_alvo_arbitrario_diferente_de_zero`):**
+   - *O que prova:* Prova que o algoritmo funciona para qualquer par $(inicial, alvo)$, não se restringindo apenas à fita zerada.
+8. **Validação Fim-a-Fim por Execução Direta (`test_validacao_execucao_das_acoes_atinge_alvo`):**
+   - *O que prova:* Prova a corretude empírica aplicando sequencialmente cada ação gerada pelo BFS sobre o estado inicial e verificando que a fita final é matematicamente igual ao alvo desejado.
+9. **Contenção Segura de Memória (`test_limite_max_nos`):**
+   - *O que prova:* Prova que o parâmetro `max_nos` interrompe a busca com segurança retornando `None`, prevenindo exaustão de memória em instâncias excessivamente profundas.
+
+- **Resultado Global:** **23 testes unitários + 18 doctests**, todos executados com 100% de sucesso em $\le 0.001$s.
 
 - **Perspectivas Futuras de Validação (Testes Randômicos e Verificação Formal):**
   - Para validações futuras em larga escala, é possível utilizar testes baseados em propriedades com a biblioteca **Hypothesis**, gerando automaticamente casos de teste com sequências e tamanhos $L$ variados para checar propriedades como reversibilidade ($x \oplus m \oplus m = x$).
@@ -207,3 +288,4 @@ python -m doctest flips.py -v
 | 16/09/2026 | Inicialização | Estrutura de pastas criada e enunciados mapeados. |
 | 20/09/2026 | Sub-rotinas de Flip | Implementação de funções puras com inteiros (`int`), tratamento de limites com `IndexError` e validação com testes unitários e doctests. |
 | 22/09/2026 | Documentação BFS (Item C) | Mapeamento do algoritmo da Seção 3.4.1 (Fig. 3.9) do Russell & Norvig 4ª ed., estrutura de nós e detalhamento passo a passo na metodologia. |
+| 23/09/2026 | Implementação BFS (Item C) | Código do BFS canônico (`bfs.py`) com fila FIFO, nós leves em tuplas nativas `(estado, pai, acao, custo)`, conjunto `set` de visitados, teste de objetivo antecipado, reconstrução de caminho e suíte de 22 testes unitários + 16 doctests. |
