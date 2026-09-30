@@ -1,0 +1,23 @@
+tamanho,tipo_instancia,heuristica,estrategia,tempo_ms,tempo_s,nos_expandidos,nos_visitados,custo_solucao,throughput_nos_s
+2,blocos,h2,Sequencial,0.0074,7e-06,1,1,1,135153.37
+2,blocos,h2,PyTorch SIMD,0.4081,0.000408,1,1,1,2450.6
+4,blocos,h2,Sequencial,0.0159,1.6e-05,1,2,1,62782.53
+4,blocos,h2,PyTorch SIMD,0.086,8.6e-05,1,2,1,11628.45
+8,blocos,h2,Sequencial,0.0617,6.2e-05,4,80,4,64820.37
+8,blocos,h2,PyTorch SIMD,0.1315,0.000132,4,80,4,30407.61
+16,blocos,h2,Sequencial,0.1875,0.000188,4,385,4,21331.63
+16,blocos,h2,PyTorch SIMD,0.2433,0.000243,4,385,4,16443.18
+32,blocos,h2,Sequencial,0.8962,0.000896,5,2022,5,5579.16
+32,blocos,h2,PyTorch SIMD,0.8925,0.000893,5,2022,5,5602.03
+64,blocos,h2,Sequencial,5.5394,0.005539,5,9757,5,902.62
+64,blocos,h2,PyTorch SIMD,5.7276,0.005728,5,9757,5,872.96
+128,blocos,h2,Sequencial,33.9408,0.033941,7,50341,7,206.24
+128,blocos,h2,PyTorch SIMD,36.8128,0.036813,7,50341,7,190.15
+256,blocos,h2,Sequencial,289.6763,0.289676,10,320082,10,34.52
+256,blocos,h2,PyTorch SIMD,353.525,0.353525,10,320082,10,28.29
+512,blocos,h2,Sequencial,1096.1987,1.096199,8,961351,8,7.3
+512,blocos,h2,PyTorch SIMD,1197.2078,1.197208,8,961351,8,6.68
+1024,blocos,h2,Sequencial,11771.9955,11.771996,12,6196319,12,1.02
+1024,blocos,h2,PyTorch SIMD,14065.3589,14.065359,12,6196319,12,0.85
+2048,blocos,h2,Sequencial,122042.4957,122.042496,11,21946623,11,0.09
+2048,blocos,h2,PyTorch SIMD,122027.404,122.027404,11,21946623,11,0.09
