@@ -16,6 +16,23 @@ from flips import (
 )
 
 
+def iterar_operacoes(tamanho: int):
+    """Gera sob demanda (on-the-fly) todas as máscaras bitwise XOR e ações com O(1) de memória.
+
+    Yields:
+        Tuplas (mascara_xor, tupla_acao) sequencialmente sem alocar listas na RAM.
+    """
+    # 1. Flips individuais de 1 bit (posição 0 até tamanho - 1)
+    for pos in range(tamanho):
+        yield (1 << pos, ("bit", pos))
+
+    # 2. Flips de blocos contíguos (tamanho >= 2)
+    for tam_bloco in range(2, tamanho + 1):
+        mascara_base = (1 << tam_bloco) - 1
+        for pos in range(tamanho - tam_bloco + 1):
+            yield (mascara_base << pos, ("bloco", pos, tam_bloco))
+
+
 def gerar_operacoes(tamanho: int) -> list[tuple[int, tuple]]:
     """Pré-computa todas as máscaras bitwise XOR e suas respectivas tuplas de ação.
 
@@ -27,19 +44,7 @@ def gerar_operacoes(tamanho: int) -> list[tuple[int, tuple]]:
     >>> ops[0]
     (1, ('bit', 0))
     """
-    operacoes = []
-
-    # 1. Flips individuais de 1 bit (posição 0 até tamanho - 1)
-    for pos in range(tamanho):
-        operacoes.append((1 << pos, ("bit", pos)))
-
-    # 2. Flips de blocos contíguos (tamanho >= 2)
-    for tam_bloco in range(2, tamanho + 1):
-        mascara_base = (1 << tam_bloco) - 1
-        for pos in range(tamanho - tam_bloco + 1):
-            operacoes.append((mascara_base << pos, ("bloco", pos, tam_bloco)))
-
-    return operacoes
+    return list(iterar_operacoes(tamanho))
 
 
 def reconstruir_caminho(no: tuple) -> tuple[list[tuple], int]:
