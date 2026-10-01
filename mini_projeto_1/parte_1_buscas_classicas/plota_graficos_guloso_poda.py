@@ -37,10 +37,47 @@ def ler_csv(caminho: str) -> list[dict]:
     return registros
 
 
+def suavizar_sinal(x: np.ndarray, y: np.ndarray, janela: int = 51) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Suaviza o sinal usando uma média ponderada com janela de Hanning e calcula bandas IQR."""
+    if len(y) <= janela:
+        return y, y, y
+
+    # Garante tamanho ímpar para simetria
+    if janela % 2 == 0:
+        janela += 1
+
+    pad = janela // 2
+    y_pad = np.pad(y, pad, mode="edge")
+
+    # Janela Hanning normalizada para transições ultra-suaves
+    kernel = np.hanning(janela)
+    kernel = kernel / kernel.sum()
+
+    y_suave = np.convolve(y_pad, kernel, mode="valid")
+
+    # Calcula desvio móvel / bandas de dispersão local
+    # Janela deslizante para percentis
+    y_p25 = np.zeros_like(y)
+    y_p75 = np.zeros_like(y)
+
+    for i in range(len(y)):
+        inicio = max(0, i - pad)
+        fim = min(len(y), i + pad + 1)
+        sub = y[inicio:fim]
+        y_p25[i] = np.percentile(sub, 25)
+        y_p75[i] = np.percentile(sub, 75)
+
+    y_p25_suave = np.convolve(np.pad(y_p25, pad, mode="edge"), kernel, mode="valid")
+    y_p75_suave = np.convolve(np.pad(y_p75, pad, mode="edge"), kernel, mode="valid")
+
+    return y_suave, y_p25_suave, y_p75_suave
+
+
 def plotar_graficos_poda(
     csv_poda: str = "bench/bench_guloso_poda.csv",
     csv_canonico: str = "bench/bench_guloso.csv",
     dir_saida: str = "bench",
+    janela_suavizacao: int = 75,
 ):
     Path(dir_saida).mkdir(parents=True, exist_ok=True)
     dados_poda = ler_csv(csv_poda)
@@ -55,39 +92,66 @@ def plotar_graficos_poda(
     seq_poda.sort(key=lambda x: x["tamanho"])
     torch_poda.sort(key=lambda x: x["tamanho"])
 
-    l_seq = [d["tamanho"] for d in seq_poda]
-    t_seq = [d["tempo_ms"] for d in seq_poda]
-    nos_seq = [d["nos_expandidos"] for d in seq_poda]
-    tp_seq = [d["throughput_nos_s"] for d in seq_poda]
+    l_seq = np.array([d["tamanho"] for d in seq_poda])
+    t_seq = np.array([d["tempo_ms"] for d in seq_poda])
+    nos_seq = np.array([d["nos_expandidos"] for d in seq_poda])
 
-    l_torch = [d["tamanho"] for d in torch_poda]
-    t_torch = [d["tempo_ms"] for d in torch_poda]
-    nos_torch = [d["nos_expandidos"] for d in torch_poda]
-    tp_torch = [d["throughput_nos_s"] for d in torch_poda]
+    l_torch = np.array([d["tamanho"] for d in torch_poda])
+    t_torch = np.array([d["tempo_ms"] for d in torch_poda])
+    nos_torch = np.array([d["nos_expandidos"] for d in torch_poda])
 
     cor_seq = "#E65100"    # Laranja
     cor_torch = "#1565C0"  # Azul
     cor_poda = "#2E7D32"   # Verde
 
     denso = len(l_seq) > 50
-    fmt = "-" if denso else "o-"
-    ms = 0 if denso else 5
-    lw = 1.8 if denso else 2.0
+
+    if denso:
+        t_seq_suave, t_seq_p25, t_seq_p75 = suavizar_sinal(l_seq, t_seq, janela=janela_suavizacao)
+        nos_seq_suave, nos_p25, nos_p75 = suavizar_sinal(l_seq, nos_seq, janela=janela_suavizacao)
+        if len(l_torch) > 0:
+            t_torch_suave, t_torch_p25, t_torch_p75 = suavizar_sinal(l_torch, t_torch, janela=janela_suavizacao)
+    else:
+        t_seq_suave, t_seq_p25, t_seq_p75 = t_seq, t_seq, t_seq
+        nos_seq_suave, nos_p25, nos_p75 = nos_seq, nos_seq, nos_seq
+        if len(l_torch) > 0:
+            t_torch_suave, t_torch_p25, t_torch_p75 = t_torch, t_torch, t_torch
 
     # 1. TEMPO DE EXECUÇÃO (Linear vs Log)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5), dpi=300)
-    ax1.plot(l_seq, t_seq, fmt, color=cor_seq, label="Sequencial (Poda)", lw=lw, markersize=ms)
-    if l_torch:
-        ax1.plot(l_torch, t_torch, fmt, color=cor_torch, label="PyTorch SIMD (Poda)", lw=lw, markersize=ms)
+
+    if denso:
+        # Fundo com os pontos originais atenuados
+        ax1.scatter(l_seq, t_seq, color=cor_seq, alpha=0.08, s=3, rasterized=True)
+        if len(l_torch) > 0:
+            ax1.scatter(l_torch, t_torch, color=cor_torch, alpha=0.08, s=3, rasterized=True)
+        # Faixa sombreada de dispersão (IQR)
+        ax1.fill_between(l_seq, t_seq_p25, t_seq_p75, color=cor_seq, alpha=0.15, label="Faixa Interquartil (IQR)")
+        # Curva de tendência suavizada
+        ax1.plot(l_seq, t_seq_suave, "-", color=cor_seq, label="Sequencial (Tendência Suave)", lw=2.5)
+        if len(l_torch) > 0:
+            ax1.plot(l_torch, t_torch_suave, "-", color=cor_torch, label="PyTorch SIMD (Tendência Suave)", lw=2.5)
+    else:
+        ax1.plot(l_seq, t_seq, "o-", color=cor_seq, label="Sequencial (Poda)", lw=2, markersize=5)
+        if len(l_torch) > 0:
+            ax1.plot(l_torch, t_torch, "s-", color=cor_torch, label="PyTorch SIMD (Poda)", lw=2, markersize=5)
+
     ax1.set_title("Escala Linear (Tempo de Execução)", fontsize=12, fontweight="bold")
     ax1.set_xlabel("Comprimento da Fita (L)", fontsize=11)
     ax1.set_ylabel("Tempo Total (ms)", fontsize=11)
     ax1.grid(True, linestyle="--", alpha=0.5)
     ax1.legend(frameon=True)
 
-    ax2.plot(l_seq, [max(1e-3, t) for t in t_seq], fmt, color=cor_seq, label="Sequencial (Poda)", lw=lw, markersize=ms)
-    if l_torch:
-        ax2.plot(l_torch, [max(1e-3, t) for t in t_torch], fmt, color=cor_torch, label="PyTorch SIMD (Poda)", lw=lw, markersize=ms)
+    if denso:
+        ax2.fill_between(l_seq, np.maximum(1e-3, t_seq_p25), np.maximum(1e-3, t_seq_p75), color=cor_seq, alpha=0.15)
+        ax2.plot(l_seq, np.maximum(1e-3, t_seq_suave), "-", color=cor_seq, label="Sequencial (Tendência Suave)", lw=2.5)
+        if len(l_torch) > 0:
+            ax2.plot(l_torch, np.maximum(1e-3, t_torch_suave), "-", color=cor_torch, label="PyTorch SIMD (Tendência Suave)", lw=2.5)
+    else:
+        ax2.plot(l_seq, np.maximum(1e-3, t_seq), "o-", color=cor_seq, label="Sequencial (Poda)", lw=2, markersize=5)
+        if len(l_torch) > 0:
+            ax2.plot(l_torch, np.maximum(1e-3, t_torch), "s-", color=cor_torch, label="PyTorch SIMD (Poda)", lw=2, markersize=5)
+
     ax2.set_yscale("log")
     ax2.set_title("Escala Logarítmica (Tempo de Execução)", fontsize=12, fontweight="bold")
     ax2.set_xlabel("Comprimento da Fita (L)", fontsize=11)
@@ -104,14 +168,26 @@ def plotar_graficos_poda(
 
     # 2. NÓS EXPANDIDOS
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5), dpi=300)
-    ax1.plot(l_seq, nos_seq, fmt, color=cor_poda, label="Nós Expandidos (Poda)", lw=lw, markersize=ms)
+
+    if denso:
+        ax1.scatter(l_seq, nos_seq, color=cor_poda, alpha=0.08, s=3, rasterized=True)
+        ax1.fill_between(l_seq, nos_p25, nos_p75, color=cor_poda, alpha=0.15, label="Faixa Interquartil (IQR)")
+        ax1.plot(l_seq, nos_seq_suave, "-", color=cor_poda, label="Nós Expandidos (Tendência Suave)", lw=2.5)
+    else:
+        ax1.plot(l_seq, nos_seq, "o-", color=cor_poda, label="Nós Expandidos (Poda)", lw=2, markersize=5)
+
     ax1.set_title("Escala Linear (Nós Expandidos)", fontsize=12, fontweight="bold")
     ax1.set_xlabel("Comprimento da Fita (L)", fontsize=11)
     ax1.set_ylabel("Nós Expandidos", fontsize=11)
     ax1.grid(True, linestyle="--", alpha=0.5)
     ax1.legend(frameon=True)
 
-    ax2.plot(l_seq, nos_seq, fmt, color=cor_poda, label="Nós Expandidos (Poda)", lw=lw, markersize=ms)
+    if denso:
+        ax2.fill_between(l_seq, np.maximum(1, nos_p25), np.maximum(1, nos_p75), color=cor_poda, alpha=0.15)
+        ax2.plot(l_seq, np.maximum(1, nos_seq_suave), "-", color=cor_poda, label="Nós Expandidos (Tendência Suave)", lw=2.5)
+    else:
+        ax2.plot(l_seq, nos_seq, "o-", color=cor_poda, label="Nós Expandidos (Poda)", lw=2, markersize=5)
+
     ax2.set_yscale("log")
     ax2.set_title("Escala Logarítmica (Nós Expandidos)", fontsize=12, fontweight="bold")
     ax2.set_xlabel("Comprimento da Fita (L)", fontsize=11)
@@ -131,20 +207,28 @@ def plotar_graficos_poda(
     if dados_canon:
         seq_canon = [d for d in dados_canon if d["estrategia"] == "Sequencial"]
         seq_canon.sort(key=lambda x: x["tamanho"])
-        l_canon = [d["tamanho"] for d in seq_canon]
-        t_canon = [d["tempo_ms"] for d in seq_canon]
+        l_canon = np.array([d["tamanho"] for d in seq_canon])
+        t_canon = np.array([d["tempo_ms"] for d in seq_canon])
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5), dpi=300)
         ax1.plot(l_canon, t_canon, "o--", color="#D32F2F", label="Guloso Canônico (Sem Poda)", lw=2, markersize=5)
-        ax1.plot(l_seq, t_seq, fmt, color="#2E7D32", label="Guloso com Poda de Ações", lw=lw, markersize=ms)
+        if denso:
+            ax1.plot(l_seq, t_seq_suave, "-", color="#2E7D32", label="Guloso com Poda (Tendência Suave)", lw=2.5)
+        else:
+            ax1.plot(l_seq, t_seq, "o-", color="#2E7D32", label="Guloso com Poda de Ações", lw=2, markersize=5)
+
         ax1.set_title("Comparação Direta - Escala Linear", fontsize=12, fontweight="bold")
         ax1.set_xlabel("Comprimento da Fita (L)", fontsize=11)
         ax1.set_ylabel("Tempo Total (ms)", fontsize=11)
         ax1.grid(True, linestyle="--", alpha=0.5)
         ax1.legend(frameon=True)
 
-        ax2.plot(l_canon, [max(1e-3, t) for t in t_canon], "o--", color="#D32F2F", label="Guloso Canônico (Sem Poda)", lw=2, markersize=5)
-        ax2.plot(l_seq, [max(1e-3, t) for t in t_seq], fmt, color="#2E7D32", label="Guloso com Poda de Ações", lw=lw, markersize=ms)
+        ax2.plot(l_canon, np.maximum(1e-3, t_canon), "o--", color="#D32F2F", label="Guloso Canônico (Sem Poda)", lw=2, markersize=5)
+        if denso:
+            ax2.plot(l_seq, np.maximum(1e-3, t_seq_suave), "-", color="#2E7D32", label="Guloso com Poda (Tendência Suave)", lw=2.5)
+        else:
+            ax2.plot(l_seq, np.maximum(1e-3, t_seq), "o-", color="#2E7D32", label="Guloso com Poda de Ações", lw=2, markersize=5)
+
         ax2.set_yscale("log")
         ax2.set_title("Comparação Direta - Escala Logarítmica", fontsize=12, fontweight="bold")
         ax2.set_xlabel("Comprimento da Fita (L)", fontsize=11)
@@ -165,12 +249,14 @@ def main():
     parser.add_argument("--csv-poda", type=str, default="bench/bench_guloso_poda.csv")
     parser.add_argument("--csv-canonico", type=str, default="bench/bench_guloso.csv")
     parser.add_argument("--dir-saida", type=str, default="bench")
+    parser.add_argument("--janela", type=int, default=75, help="Janela de suavização para dados densos.")
 
     args = parser.parse_args()
     plotar_graficos_poda(
         csv_poda=args.csv_poda,
         csv_canonico=args.csv_canonico,
         dir_saida=args.dir_saida,
+        janela_suavizacao=args.janela,
     )
 
 
