@@ -1,0 +1,25 @@
+tamanho,tipo_instancia,heuristica,estrategia,tempo_ms,tempo_s,nos_expandidos,nos_visitados,custo_solucao,throughput_nos_s
+2,blocos,h2,Sequencial (Poda),0.008,8e-06,1,1,1,125203.46
+2,blocos,h2,PyTorch SIMD (Poda),0.48,0.00048,1,1,1,2083.35
+4,blocos,h2,Sequencial (Poda),0.0084,8e-06,1,1,1,119303.27
+4,blocos,h2,PyTorch SIMD (Poda),0.0904,9e-05,1,1,1,11059.13
+8,blocos,h2,Sequencial (Poda),0.0268,2.7e-05,4,10,4,149443.32
+8,blocos,h2,PyTorch SIMD (Poda),0.3092,0.000309,4,10,4,12937.95
+16,blocos,h2,Sequencial (Poda),0.04,4e-05,4,28,4,99915.07
+16,blocos,h2,PyTorch SIMD (Poda),0.1527,0.000153,4,28,4,26192.07
+32,blocos,h2,Sequencial (Poda),0.0545,5.5e-05,5,43,5,91694.33
+32,blocos,h2,PyTorch SIMD (Poda),0.2035,0.000204,5,43,5,24568.94
+64,blocos,h2,Sequencial (Poda),0.1988,0.000199,5,161,5,25156.47
+64,blocos,h2,PyTorch SIMD (Poda),0.2259,0.000226,5,161,5,22137.31
+128,blocos,h2,Sequencial (Poda),0.2007,0.000201,7,273,7,34870.46
+128,blocos,h2,PyTorch SIMD (Poda),0.1912,0.000191,7,273,7,36605.14
+256,blocos,h2,Sequencial (Poda),0.7691,0.000769,10,943,10,13001.42
+256,blocos,h2,PyTorch SIMD (Poda),0.6491,0.000649,10,943,10,15405.28
+512,blocos,h2,Sequencial (Poda),1.791,0.001791,8,1462,8,4466.89
+512,blocos,h2,PyTorch SIMD (Poda),1.5575,0.001558,8,1462,8,5136.28
+1024,blocos,h2,Sequencial (Poda),5.1074,0.005107,12,4362,12,2349.54
+1024,blocos,h2,PyTorch SIMD (Poda),7.4875,0.007487,12,4362,12,1602.68
+2048,blocos,h2,Sequencial (Poda),18.1861,0.018186,11,7178,11,604.86
+2048,blocos,h2,PyTorch SIMD (Poda),20.3152,0.020315,11,7178,11,541.47
+4096,blocos,h2,Sequencial (Poda),40.873,0.040873,12,17564,12,293.59
+4096,blocos,h2,PyTorch SIMD (Poda),40.7695,0.04077,12,17564,12,294.34
