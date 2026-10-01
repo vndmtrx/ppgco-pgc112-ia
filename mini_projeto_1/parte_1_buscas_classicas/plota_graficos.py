@@ -254,103 +254,164 @@ def gerar_graficos_individuais(registros: list[dict], pasta: str = DIR_BENCH) ->
     p75_tp_torch = [float(np.percentile(dados_tp_torch[l], 75)) for l in valores_l]
 
     # =========================================================================
-    # GRÁFICO 1: Tempo de Caso Médio (Média Geométrica & Corredor IQR)
+    # GRÁFICO 1: Tempo de Caso Médio (Linear vs. Logarítmico)
     # =========================================================================
-    fig1, ax1 = plt.subplots(figsize=(10, 6), dpi=300)
-    ax1.plot(valores_l, geomean_seq, "o-", color="#d84315", linewidth=2.5, markersize=6, label="BFS Sequencial (Média Geométrica)")
-    ax1.fill_between(valores_l, p25_seq, p75_seq, color="#ff9800", alpha=0.20, label="Corredor Típico Sequencial (IQR: P25 - P75)")
+    fig1, (ax1_lin, ax1_log) = plt.subplots(1, 2, figsize=(16, 5.8), dpi=300)
 
-    ax1.plot(valores_l, geomean_torch, "s-", color="#0d47a1", linewidth=2.5, markersize=6, label="PyTorch SIMD (Média Geométrica)")
-    ax1.fill_between(valores_l, p25_torch, p75_torch, color="#2196f3", alpha=0.20, label="Corredor Típico PyTorch (IQR: P25 - P75)")
+    # (a) Escala Linear
+    ax1_lin.plot(valores_l, geomean_seq, "o-", color="#d84315", linewidth=2.5, markersize=6, label="BFS Sequencial (Média Geométrica)")
+    ax1_lin.fill_between(valores_l, p25_seq, p75_seq, color="#ff9800", alpha=0.20, label="Corredor Sequencial (IQR: P25 - P75)")
+    ax1_lin.plot(valores_l, geomean_torch, "s-", color="#0d47a1", linewidth=2.5, markersize=6, label="PyTorch SIMD (Média Geométrica)")
+    ax1_lin.fill_between(valores_l, p25_torch, p75_torch, color="#2196f3", alpha=0.20, label="Corredor PyTorch (IQR: P25 - P75)")
 
-    ax1.set_yscale("log")
-    ax1.set_xlabel("Comprimento da Fita ($L$)", fontweight="bold")
-    ax1.set_ylabel("Tempo de Execução em ms (Escala Logarítmica)", fontweight="bold")
-    ax1.set_title("Curva de Tendência de Caso Médio: Evolução Temporal por Comprimento $L$", pad=15)
-    ax1.set_xticks(valores_l)
-    ax1.set_xticklabels([str(l) for l in valores_l])
-    ax1.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
-    ax1.legend(loc="upper left", frameon=True)
+    ax1_lin.set_xlabel("Comprimento da Fita ($L$)", fontweight="bold")
+    ax1_lin.set_ylabel("Tempo de Execução (ms)", fontweight="bold")
+    ax1_lin.set_title("(a) Escala Linear: Explosão Temporal Abrupta", fontweight="bold", pad=12)
+    ax1_lin.set_xticks(valores_l)
+    ax1_lin.set_xticklabels([str(l) for l in valores_l])
+    ax1_lin.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
+    ax1_lin.legend(loc="upper left", frameon=True)
 
+    # (b) Escala Logarítmica
+    ax1_log.plot(valores_l, geomean_seq, "o-", color="#d84315", linewidth=2.5, markersize=6, label="BFS Sequencial (Média Geométrica)")
+    ax1_log.fill_between(valores_l, p25_seq, p75_seq, color="#ff9800", alpha=0.20, label="Corredor Sequencial (IQR: P25 - P75)")
+    ax1_log.plot(valores_l, geomean_torch, "s-", color="#0d47a1", linewidth=2.5, markersize=6, label="PyTorch SIMD (Média Geométrica)")
+    ax1_log.fill_between(valores_l, p25_torch, p75_torch, color="#2196f3", alpha=0.20, label="Corredor PyTorch (IQR: P25 - P75)")
+
+    ax1_log.set_yscale("log")
+    ax1_log.set_xlabel("Comprimento da Fita ($L$)", fontweight="bold")
+    ax1_log.set_ylabel("Tempo de Execução em ms (Escala Logarítmica)", fontweight="bold")
+    ax1_log.set_title("(b) Escala Logarítmica: Tendência Multiplicativa e Crossover", fontweight="bold", pad=12)
+    ax1_log.set_xticks(valores_l)
+    ax1_log.set_xticklabels([str(l) for l in valores_l])
+    ax1_log.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
+    ax1_log.legend(loc="upper left", frameon=True)
+
+    fig1.suptitle("Evolução Temporal de Caso Médio: Escala Linear vs. Escala Logarítmica", fontsize=14, fontweight="bold", y=1.02)
     caminho1 = os.path.join(pasta, "grafico_bfs_tempo_tendencia.png")
     fig1.tight_layout()
-    fig1.savefig(caminho1, dpi=300)
+    fig1.savefig(caminho1, dpi=300, bbox_inches="tight")
     plt.close(fig1)
-    print(f"📈 [1/4] Gráfico Individual de Tempo salvo em: '{caminho1}'")
+    print(f"📈 [1/4] Gráfico Comparativo de Tempo (Linear vs. Log) salvo em: '{caminho1}'")
 
     # =========================================================================
-    # GRÁFICO 2: Complexidade Estrutural no Grafo (Nós Expandidos por L)
+    # GRÁFICO 2: Complexidade Estrutural no Grafo (Linear vs. Logarítmico)
     # =========================================================================
-    fig2, ax2 = plt.subplots(figsize=(10, 6), dpi=300)
-    ax2.plot(valores_l, geomean_nos, "D-", color="#37474f", linewidth=2.5, markersize=6, label="Nós Expandidos (Média Geométrica)")
-    ax2.fill_between(valores_l, p25_nos, p75_nos, color="#78909c", alpha=0.25, label="Corredor Interquartil (IQR: P25 - P75)")
+    fig2, (ax2_lin, ax2_log) = plt.subplots(1, 2, figsize=(16, 5.8), dpi=300)
 
-    ax2.set_yscale("log")
-    ax2.set_xlabel("Comprimento da Fita ($L$)", fontweight="bold")
-    ax2.set_ylabel("Quantidade de Nós Expandidos (Escala Logarítmica)", fontweight="bold")
-    ax2.set_title("Complexidade Estrutural no Grafo de Busca: Expansão de Nós por Comprimento $L$", pad=15)
-    ax2.set_xticks(valores_l)
-    ax2.set_xticklabels([str(l) for l in valores_l])
-    ax2.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
-    ax2.legend(loc="upper left", frameon=True)
+    # (a) Escala Linear
+    ax2_lin.plot(valores_l, geomean_nos, "D-", color="#37474f", linewidth=2.5, markersize=6, label="Nós Expandidos (Média Geométrica)")
+    ax2_lin.fill_between(valores_l, p25_nos, p75_nos, color="#78909c", alpha=0.25, label="Corredor Interquartil (IQR: P25 - P75)")
 
+    ax2_lin.set_xlabel("Comprimento da Fita ($L$)", fontweight="bold")
+    ax2_lin.set_ylabel("Quantidade de Nós Expandidos", fontweight="bold")
+    ax2_lin.set_title("(a) Escala Linear: Explosão Combinatória $O(b^d)$", fontweight="bold", pad=12)
+    ax2_lin.set_xticks(valores_l)
+    ax2_lin.set_xticklabels([str(l) for l in valores_l])
+    ax2_lin.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
+    ax2_lin.legend(loc="upper left", frameon=True)
+
+    # (b) Escala Logarítmica
+    ax2_log.plot(valores_l, geomean_nos, "D-", color="#37474f", linewidth=2.5, markersize=6, label="Nós Expandidos (Média Geométrica)")
+    ax2_log.fill_between(valores_l, p25_nos, p75_nos, color="#78909c", alpha=0.25, label="Corredor Interquartil (IQR: P25 - P75)")
+
+    ax2_log.set_yscale("log")
+    ax2_log.set_xlabel("Comprimento da Fita ($L$)", fontweight="bold")
+    ax2_log.set_ylabel("Quantidade de Nós Expandidos (Escala Logarítmica)", fontweight="bold")
+    ax2_log.set_title("(b) Escala Logarítmica: Taxa Assintótica de Expansão", fontweight="bold", pad=12)
+    ax2_log.set_xticks(valores_l)
+    ax2_log.set_xticklabels([str(l) for l in valores_l])
+    ax2_log.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
+    ax2_log.legend(loc="upper left", frameon=True)
+
+    fig2.suptitle("Complexidade Estrutural no Grafo: Escala Linear vs. Escala Logarítmica", fontsize=14, fontweight="bold", y=1.02)
     caminho2 = os.path.join(pasta, "grafico_bfs_nos_expandidos.png")
     fig2.tight_layout()
-    fig2.savefig(caminho2, dpi=300)
+    fig2.savefig(caminho2, dpi=300, bbox_inches="tight")
     plt.close(fig2)
-    print(f"🌲 [2/4] Gráfico Individual de Nós Expandidos salvo em: '{caminho2}'")
+    print(f"🌲 [2/4] Gráfico Comparativo de Nós Expandidos (Linear vs. Log) salvo em: '{caminho2}'")
 
     # =========================================================================
-    # GRÁFICO 3: Throughput de Processamento (Vazão em Nós/segundo por L)
+    # GRÁFICO 3: Throughput de Processamento (Linear vs. Logarítmico)
     # =========================================================================
-    fig3, ax3 = plt.subplots(figsize=(10, 6), dpi=300)
-    ax3.plot(valores_l, geomean_tp_seq, "o-", color="#d84315", linewidth=2.5, markersize=6, label="Throughput BFS Sequencial (Média Geométrica)")
-    ax3.fill_between(valores_l, p25_tp_seq, p75_tp_seq, color="#ff9800", alpha=0.20, label="Corredor Sequencial (IQR: P25 - P75)")
+    fig3, (ax3_lin, ax3_log) = plt.subplots(1, 2, figsize=(16, 5.8), dpi=300)
 
-    ax3.plot(valores_l, geomean_tp_torch, "s-", color="#0d47a1", linewidth=2.5, markersize=6, label="Throughput PyTorch SIMD (Média Geométrica)")
-    ax3.fill_between(valores_l, p25_tp_torch, p75_tp_torch, color="#2196f3", alpha=0.20, label="Corredor PyTorch (IQR: P25 - P75)")
+    # (a) Escala Linear
+    ax3_lin.plot(valores_l, geomean_tp_seq, "o-", color="#d84315", linewidth=2.5, markersize=6, label="Throughput Sequencial (Média Geométrica)")
+    ax3_lin.fill_between(valores_l, p25_tp_seq, p75_tp_seq, color="#ff9800", alpha=0.20, label="Corredor Sequencial (IQR: P25 - P75)")
+    ax3_lin.plot(valores_l, geomean_tp_torch, "s-", color="#0d47a1", linewidth=2.5, markersize=6, label="Throughput PyTorch SIMD (Média Geométrica)")
+    ax3_lin.fill_between(valores_l, p25_tp_torch, p75_tp_torch, color="#2196f3", alpha=0.20, label="Corredor PyTorch (IQR: P25 - P75)")
 
-    ax3.set_yscale("log")
-    ax3.set_xlabel("Comprimento da Fita ($L$)", fontweight="bold")
-    ax3.set_ylabel("Vazão de Expansão (Nós/s, Escala Logarítmica)", fontweight="bold")
-    ax3.set_title("Vazão de Processamento (Throughput): Nós Expandidos por Segundo por $L$", pad=15)
-    ax3.set_xticks(valores_l)
-    ax3.set_xticklabels([str(l) for l in valores_l])
-    ax3.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
-    ax3.legend(loc="lower right", frameon=True)
+    ax3_lin.set_xlabel("Comprimento da Fita ($L$)", fontweight="bold")
+    ax3_lin.set_ylabel("Vazão de Expansão (Nós / segundo)", fontweight="bold")
+    ax3_lin.set_title("(a) Escala Linear: Magnitude Absoluta de Processamento", fontweight="bold", pad=12)
+    ax3_lin.set_xticks(valores_l)
+    ax3_lin.set_xticklabels([str(l) for l in valores_l])
+    ax3_lin.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
+    ax3_lin.legend(loc="upper left", frameon=True)
 
+    # (b) Escala Logarítmica
+    ax3_log.plot(valores_l, geomean_tp_seq, "o-", color="#d84315", linewidth=2.5, markersize=6, label="Throughput Sequencial (Média Geométrica)")
+    ax3_log.fill_between(valores_l, p25_tp_seq, p75_tp_seq, color="#ff9800", alpha=0.20, label="Corredor Sequencial (IQR: P25 - P75)")
+    ax3_log.plot(valores_l, geomean_tp_torch, "s-", color="#0d47a1", linewidth=2.5, markersize=6, label="Throughput PyTorch SIMD (Média Geométrica)")
+    ax3_log.fill_between(valores_l, p25_tp_torch, p75_tp_torch, color="#2196f3", alpha=0.20, label="Corredor PyTorch (IQR: P25 - P75)")
+
+    ax3_log.set_yscale("log")
+    ax3_log.set_xlabel("Comprimento da Fita ($L$)", fontweight="bold")
+    ax3_log.set_ylabel("Vazão de Expansão em Nós/s (Escala Logarítmica)", fontweight="bold")
+    ax3_log.set_title("(b) Escala Logarítmica: Comportamento em Ordens de Magnitude", fontweight="bold", pad=12)
+    ax3_log.set_xticks(valores_l)
+    ax3_log.set_xticklabels([str(l) for l in valores_l])
+    ax3_log.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
+    ax3_log.legend(loc="lower right", frameon=True)
+
+    fig3.suptitle("Vazão de Processamento (Throughput): Escala Linear vs. Escala Logarítmica", fontsize=14, fontweight="bold", y=1.02)
     caminho3 = os.path.join(pasta, "grafico_bfs_throughput.png")
     fig3.tight_layout()
-    fig3.savefig(caminho3, dpi=300)
+    fig3.savefig(caminho3, dpi=300, bbox_inches="tight")
     plt.close(fig3)
-    print(f"🚀 [3/4] Gráfico de Throughput salvo em: '{caminho3}'")
+    print(f"🚀 [3/4] Gráfico Comparativo de Throughput (Linear vs. Log) salvo em: '{caminho3}'")
 
     # =========================================================================
-    # GRÁFICO 4: Complexidade por Profundidade Ótima (d*)
+    # GRÁFICO 4: Complexidade por Profundidade Ótima (Linear vs. Logarítmico)
     # =========================================================================
-    fig4, ax4 = plt.subplots(figsize=(10, 6), dpi=300)
+    fig4, (ax4_lin, ax4_log) = plt.subplots(1, 2, figsize=(16, 5.8), dpi=300)
     valores_d = sorted(list(dados_nos_por_d.keys()))
     geomean_nos_d = [calcular_media_geometrica(dados_nos_por_d[d]) for d in valores_d]
     p25_nos_d = [float(np.percentile(dados_nos_por_d[d], 25)) for d in valores_d]
     p75_nos_d = [float(np.percentile(dados_nos_por_d[d], 75)) for d in valores_d]
 
-    ax4.plot(valores_d, geomean_nos_d, "^-", color="#4a148c", linewidth=2.5, markersize=7, label="Nós Expandidos por Profundidade (Média Geométrica)")
-    ax4.fill_between(valores_d, p25_nos_d, p75_nos_d, color="#7b1fa2", alpha=0.20, label="Corredor Interquartil (IQR: P25 - P75)")
+    # (a) Escala Linear
+    ax4_lin.plot(valores_d, geomean_nos_d, "^-", color="#4a148c", linewidth=2.5, markersize=7, label="Nós Expandidos (Média Geométrica)")
+    ax4_lin.fill_between(valores_d, p25_nos_d, p75_nos_d, color="#7b1fa2", alpha=0.20, label="Corredor Interquartil (IQR: P25 - P75)")
 
-    ax4.set_yscale("log")
-    ax4.set_xlabel("Profundidade Ótima da Meta ($d^*$)", fontweight="bold")
-    ax4.set_ylabel("Quantidade de Nós Expandidos (Escala Logarítmica)", fontweight="bold")
-    ax4.set_title("Complexidade Exponencial no Grafo: Expansão de Nós por Profundidade Ótima $d^*$", pad=15)
-    ax4.set_xticks(valores_d)
-    ax4.set_xticklabels([str(d) for d in valores_d])
-    ax4.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
-    ax4.legend(loc="upper left", frameon=True)
+    ax4_lin.set_xlabel("Profundidade Ótima da Meta ($d^*$)", fontweight="bold")
+    ax4_lin.set_ylabel("Quantidade de Nós Expandidos", fontweight="bold")
+    ax4_lin.set_title("(a) Escala Linear: Explosão por Profundidade", fontweight="bold", pad=12)
+    ax4_lin.set_xticks(valores_d)
+    ax4_lin.set_xticklabels([str(d) for d in valores_d])
+    ax4_lin.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
+    ax4_lin.legend(loc="upper left", frameon=True)
 
+    # (b) Escala Logarítmica
+    ax4_log.plot(valores_d, geomean_nos_d, "^-", color="#4a148c", linewidth=2.5, markersize=7, label="Nós Expandidos (Média Geométrica)")
+    ax4_log.fill_between(valores_d, p25_nos_d, p75_nos_d, color="#7b1fa2", alpha=0.20, label="Corredor Interquartil (IQR: P25 - P75)")
+
+    ax4_log.set_yscale("log")
+    ax4_log.set_xlabel("Profundidade Ótima da Meta ($d^*$)", fontweight="bold")
+    ax4_log.set_ylabel("Quantidade de Nós Expandidos (Escala Logarítmica)", fontweight="bold")
+    ax4_log.set_title("(b) Escala Logarítmica: Linearização da Complexidade $O(b^d)$", fontweight="bold", pad=12)
+    ax4_log.set_xticks(valores_d)
+    ax4_log.set_xticklabels([str(d) for d in valores_d])
+    ax4_log.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
+    ax4_log.legend(loc="upper left", frameon=True)
+
+    fig4.suptitle("Complexidade por Profundidade Ótima ($d^*$): Escala Linear vs. Escala Logarítmica", fontsize=14, fontweight="bold", y=1.02)
     caminho4 = os.path.join(pasta, "grafico_bfs_profundidade.png")
     fig4.tight_layout()
-    fig4.savefig(caminho4, dpi=300)
+    fig4.savefig(caminho4, dpi=300, bbox_inches="tight")
     plt.close(fig4)
-    print(f"🎯 [4/4] Gráfico de Profundidade Ótima salvo em: '{caminho4}'")
+    print(f"🎯 [4/4] Gráfico Comparativo de Profundidade (Linear vs. Log) salvo em: '{caminho4}'")
     print("=" * 75)
 
 
