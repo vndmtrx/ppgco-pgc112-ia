@@ -767,14 +767,55 @@ O PyTorch suporta nativamente operações bit a bit em tensores de até 64 bits 
 
 ---
 
-#### 6. Solução e Validação: Algoritmo Guloso com Poda de Ações (`guloso_poda`)
+#### 6. Processo de Aprendizado, Diagnóstico do Gargalo e Solução: Guloso com Poda de Ações (`guloso_poda`)
 
-Para contornar o gargalo da explosão combinatória de ações ($8,39\text{ milhões}$ de ações por nó em $L = 4096$), desenvolvemos e validamos a estratégia de **poda de ações** (`guloso_poda_sequencial.py` e `guloso_poda_torch.py`):
-* **Princípio da Poda:** Em vez de gerar todas as $\Theta(L^2)$ ações possíveis (inversões de bits e blocos arbitrários), o algoritmo inspeciona a fita de diferença $\Delta = s \oplus t$ e extrai diretamente as posições e comprimentos de cada bloco contíguo de 1s existente (`extrair_acoes_podadas`).
-* **Complexidade de Ramificação:** O número de filhos gerados por nó cai de $\frac{L(L+1)}{2}$ para no máximo $\lceil L/2 \rceil$ (apenas a quantidade de blocos reais presentes na fita atual).
-* **Preservação de Otimalidade:** Como cada bloco contíguo de 1s pode ser eliminado em uma única operação ótima de flip de bloco, as ações podadas contêm exatamente os passos que reduzem a heurística $h_2$ no ritmo máximo.
+##### 6.1. O Diagnóstico: Por que o Guloso Canônico Falhou em $L = 4096$?
 
-##### Resultados Empíricos do Guloso com Poda ($L = 2$ a $4096$)
+Durante os testes de escalabilidade, observamos um contraste marcante:
+* Para instâncias pequenas e médias ($L \le 256$), o Algoritmo Guloso guiado por $h_2$ encontrava a solução em milissegundos, expandindo uma quantidade mínima de nós ($b^* = 1,00$).
+* No entanto, ao atingir $L = 4096$, o processo simplesmente travava o computador e era morto pelo kernel do Linux (*OOM Killer*).
+
+Ao analisar a causa raiz no código, percebemos que o gargalo **não estava na lógica de busca nem na fila de prioridades**, mas sim na **formulação estática do espaço de ações**:
+1. Na formulação canônica inicial, definimos que a cada nó expandido, a função gerava **todas as combinações possíveis de flips**:
+   $$|A| = \frac{L(L+1)}{2} = \frac{4096 \times 4097}{2} = 8.390.656 \text{ ações por nó.}$$
+2. Para cada um desses $8,39$ milhões de filhos gerados:
+   * Criava-se um novo número inteiro de 4096 bits em memória;
+   * Calculava-se a heurística $h(s)$;
+   * Checava-se se o estado já existia no conjunto `reached`;
+   * Inseria-se uma tupla no `heapq`.
+3. **O Desperdício Combinatório:** Em uma fita de 4096 bits onde existem apenas 10 ou 12 blocos de 1s para serem apagados, mais de $99,999\%$ das $8,39$ milhões de ações geradas faziam coisas totalmente inúteis:
+   * Invertiam blocos inteiros onde já haviam zeros (criando blocos novos de 1s desnecessariamente);
+   * Quebravam blocos de 1s já contíguos ao meio (aumentando o valor de $h_2$);
+   * Geravam milhões de estados filhos de pior qualidade que eram avaliados, enfileirados e imediatamente descartados pelo algoritmo guloso.
+
+##### 6.2. A Decisão de Design: Formulação Dinâmica de $\text{ACTIONS}(s)$
+
+Recorrendo à teoria do livro *Artificial Intelligence: A Modern Approach* (Russell & Norvig, 4ª edição, Seção 3.1.2 — *Formulating Problems*, p. 66–68), relembramos que o espaço de ações não precisa ser uma lista estática e cega. A função $\text{ACTIONS}(s)$ deve definir as **ações aplicáveis e produtivas para o estado $s$**.
+
+Na literatura de Inteligência Artificial e Planejamento Clássico, essa abordagem é conhecida como **Poda do Espaço de Ações (*Action Space Pruning / Irrelevant Action Elimination*)**:
+* Se um bit ou bloco na fita de diferença $\Delta = s \oplus t$ já está zerado ($0$), inverter essa região ($0 \to 1$) só aumenta a discrepância em relação ao objetivo, violando a monotonicidade e aumentando a distância real $h^*(s')$.
+* A única maneira eficiente de reduzir a distância até a meta é aplicar flips diretamente sobre os blocos contíguos de 1s existentes.
+
+##### 6.3. Como a Poda de Ações Funciona na Prática (`extrair_acoes_podadas`)
+
+Em vez de gerar a matriz estática de $8,39$ milhões de operações, criamos uma sub-rotina de inspeção do estado atual:
+1. Dada a fita de diferença $\Delta = s \oplus t$, identificamos os pontos de transição de bits em tempo extremamente rápido ($\mathcal{O}(1)$ em operações de máquina com álgebra booleana):
+   $$\text{inicios} = \Delta \ \& \ \sim(\Delta \gg 1)$$
+2. Percorremos apenas os agrupamentos reais de 1s para extrair:
+   * **Flips de Bloco Específicos:** Inverte exatamente a janela $[pos, pos + tamanho\_bloco)$ de cada agrupamento de 1s.
+   * **Flips de 1 Bit Pontuais:** Inverte bits 1 isolados.
+3. **Redução Drástica da Ramificação:**
+   * Se a fita de $L = 4096$ possui 12 blocos de 1s, o número de ações geradas por nó cai de **$8.390.656$ para apenas $12$**!
+   * Uma redução no fator de ramificação de mais de **$700.000\times$** por nó expandido.
+
+##### 6.4. Por que a Poda Preserva 100% da Otimalidade da Solução?
+
+* **Preservação de Caminho Ótimo:** Como demonstrado na prova de consistência da heurística $h_2$, o menor caminho até a fita zerada consiste em eliminar exatamente os blocos contíguos de 1s existentes.
+* Inverter bits zeros geraria novos blocos de 1s (afastando-se do objetivo).
+* Inverter apenas parte de um bloco de 1s deixaria o restante do bloco pendente, exigindo mais passos.
+* Assim, o conjunto podado $\text{ACTIONS}_{poda}(s)$ contém garantidamente o passo ótimo que reduz $h_2$ em 1 unidade por nível, preservando o custo mínimo real ($d = d^*$).
+
+##### 6.5. Resultados Empíricos do Guloso com Poda ($L = 2$ a $4096$)
 
 Executamos o benchmark completo (`bench_guloso_poda.py`), consolidado em `bench/bench_guloso_poda.csv` e visualizado em `bench/grafico_guloso_comparativo_com_e_sem_poda.png`:
 
