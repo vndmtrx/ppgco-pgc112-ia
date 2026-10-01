@@ -69,20 +69,25 @@ def plotar_graficos_poda(
     cor_torch = "#1565C0"  # Azul
     cor_poda = "#2E7D32"   # Verde
 
+    denso = len(l_seq) > 50
+    fmt = "-" if denso else "o-"
+    ms = 0 if denso else 5
+    lw = 1.8 if denso else 2.0
+
     # 1. TEMPO DE EXECUÇÃO (Linear vs Log)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5), dpi=300)
-    ax1.plot(l_seq, t_seq, "o-", color=cor_seq, label="Sequencial (Poda)", lw=2, markersize=5)
+    ax1.plot(l_seq, t_seq, fmt, color=cor_seq, label="Sequencial (Poda)", lw=lw, markersize=ms)
     if l_torch:
-        ax1.plot(l_torch, t_torch, "s-", color=cor_torch, label="PyTorch SIMD (Poda)", lw=2, markersize=5)
+        ax1.plot(l_torch, t_torch, fmt, color=cor_torch, label="PyTorch SIMD (Poda)", lw=lw, markersize=ms)
     ax1.set_title("Escala Linear (Tempo de Execução)", fontsize=12, fontweight="bold")
     ax1.set_xlabel("Comprimento da Fita (L)", fontsize=11)
     ax1.set_ylabel("Tempo Total (ms)", fontsize=11)
     ax1.grid(True, linestyle="--", alpha=0.5)
     ax1.legend(frameon=True)
 
-    ax2.plot(l_seq, [max(1e-3, t) for t in t_seq], "o-", color=cor_seq, label="Sequencial (Poda)", lw=2, markersize=5)
+    ax2.plot(l_seq, [max(1e-3, t) for t in t_seq], fmt, color=cor_seq, label="Sequencial (Poda)", lw=lw, markersize=ms)
     if l_torch:
-        ax2.plot(l_torch, [max(1e-3, t) for t in t_torch], "s-", color=cor_torch, label="PyTorch SIMD (Poda)", lw=2, markersize=5)
+        ax2.plot(l_torch, [max(1e-3, t) for t in t_torch], fmt, color=cor_torch, label="PyTorch SIMD (Poda)", lw=lw, markersize=ms)
     ax2.set_yscale("log")
     ax2.set_title("Escala Logarítmica (Tempo de Execução)", fontsize=12, fontweight="bold")
     ax2.set_xlabel("Comprimento da Fita (L)", fontsize=11)
@@ -99,14 +104,14 @@ def plotar_graficos_poda(
 
     # 2. NÓS EXPANDIDOS
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5), dpi=300)
-    ax1.plot(l_seq, nos_seq, "o-", color=cor_poda, label="Nós Expandidos (Poda)", lw=2, markersize=5)
+    ax1.plot(l_seq, nos_seq, fmt, color=cor_poda, label="Nós Expandidos (Poda)", lw=lw, markersize=ms)
     ax1.set_title("Escala Linear (Nós Expandidos)", fontsize=12, fontweight="bold")
     ax1.set_xlabel("Comprimento da Fita (L)", fontsize=11)
     ax1.set_ylabel("Nós Expandidos", fontsize=11)
     ax1.grid(True, linestyle="--", alpha=0.5)
     ax1.legend(frameon=True)
 
-    ax2.plot(l_seq, nos_seq, "o-", color=cor_poda, label="Nós Expandidos (Poda)", lw=2, markersize=5)
+    ax2.plot(l_seq, nos_seq, fmt, color=cor_poda, label="Nós Expandidos (Poda)", lw=lw, markersize=ms)
     ax2.set_yscale("log")
     ax2.set_title("Escala Logarítmica (Nós Expandidos)", fontsize=12, fontweight="bold")
     ax2.set_xlabel("Comprimento da Fita (L)", fontsize=11)
@@ -131,7 +136,7 @@ def plotar_graficos_poda(
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5), dpi=300)
         ax1.plot(l_canon, t_canon, "o--", color="#D32F2F", label="Guloso Canônico (Sem Poda)", lw=2, markersize=5)
-        ax1.plot(l_seq, t_seq, "o-", color="#2E7D32", label="Guloso com Poda de Ações", lw=2, markersize=5)
+        ax1.plot(l_seq, t_seq, fmt, color="#2E7D32", label="Guloso com Poda de Ações", lw=lw, markersize=ms)
         ax1.set_title("Comparação Direta - Escala Linear", fontsize=12, fontweight="bold")
         ax1.set_xlabel("Comprimento da Fita (L)", fontsize=11)
         ax1.set_ylabel("Tempo Total (ms)", fontsize=11)
@@ -139,7 +144,7 @@ def plotar_graficos_poda(
         ax1.legend(frameon=True)
 
         ax2.plot(l_canon, [max(1e-3, t) for t in t_canon], "o--", color="#D32F2F", label="Guloso Canônico (Sem Poda)", lw=2, markersize=5)
-        ax2.plot(l_seq, [max(1e-3, t) for t in t_seq], "o-", color="#2E7D32", label="Guloso com Poda de Ações", lw=2, markersize=5)
+        ax2.plot(l_seq, [max(1e-3, t) for t in t_seq], fmt, color="#2E7D32", label="Guloso com Poda de Ações", lw=lw, markersize=ms)
         ax2.set_yscale("log")
         ax2.set_title("Comparação Direta - Escala Logarítmica", fontsize=12, fontweight="bold")
         ax2.set_xlabel("Comprimento da Fita (L)", fontsize=11)

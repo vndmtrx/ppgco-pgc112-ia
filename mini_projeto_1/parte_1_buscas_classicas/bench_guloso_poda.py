@@ -48,17 +48,24 @@ def executar_benchmark_poda(
     ]
 
     registros = []
+    total_instancias = len(tamanhos)
+    modo_denso = total_instancias > 30
 
     print("=" * 80)
     print(f"BENCHMARK GULOSO COM PODA DE AÇÕES - HEURÍSTICA: {heuristica_nome.upper()}")
-    print(f"Tipo de Instância: {tipo_instancia.capitalize()} | Escala Máxima: L = {max(tamanhos)}")
-    print("=" * 80)
     print(
-        f"{'L':<6} | {'Estratégia':<14} | {'Expandidos':<12} | {'Custo':<8} | {'Tempo (ms)':<14} | {'Throughput (nó/s)':<18}"
+        f"Tipo de Instância: {tipo_instancia.capitalize()} | Total de Pontos: {total_instancias} (L={min(tamanhos)}..{max(tamanhos)})"
     )
-    print("-" * 80)
+    print("=" * 80)
+    if not modo_denso:
+        print(
+            f"{'L':<6} | {'Estratégia':<14} | {'Expandidos':<12} | {'Custo':<8} | {'Tempo (ms)':<14} | {'Throughput (nó/s)':<18}"
+        )
+        print("-" * 80)
 
-    for L in tamanhos:
+    t_inicio_global = time.time()
+
+    for idx, L in enumerate(tamanhos, start=1):
         fita = gerar_instancia_teste(L, tipo=tipo_instancia)
         estado_inicial, _ = carregar(fita)
 
@@ -93,9 +100,10 @@ def executar_benchmark_poda(
                 }
             )
 
-            print(
-                f"{L:<6} | {'Sequencial':<14} | {expandidos_seq:<12} | {custo_seq:<8} | {tempo_ms_seq:<14.3f} | {tp_seq:<18.2f}"
-            )
+            if not modo_denso:
+                print(
+                    f"{L:<6} | {'Sequencial':<14} | {expandidos_seq:<12} | {custo_seq:<8} | {tempo_ms_seq:<14.3f} | {tp_seq:<18.2f}"
+                )
         except Exception as e:
             print(f"{L:<6} | {'Sequencial':<14} | ERRO: {e}")
 
@@ -133,21 +141,33 @@ def executar_benchmark_poda(
                     }
                 )
 
-                print(
-                    f"{L:<6} | {'PyTorch SIMD':<14} | {expandidos_torch:<12} | {custo_torch:<8} | {tempo_ms_torch:<14.3f} | {tp_torch:<18.2f}"
-                )
+                if not modo_denso:
+                    print(
+                        f"{L:<6} | {'PyTorch SIMD':<14} | {expandidos_torch:<12} | {custo_torch:<8} | {tempo_ms_torch:<14.3f} | {tp_torch:<18.2f}"
+                    )
             except Exception as e:
                 print(f"{L:<6} | {'PyTorch SIMD':<14} | ERRO: {e}")
 
-        gc.collect()
+        if modo_denso and (idx % 250 == 0 or idx == total_instancias):
+            decorrido = time.time() - t_inicio_global
+            porc = (idx / total_instancias) * 100
+            print(
+                f"Progresso: {idx:4d}/{total_instancias} ({porc:5.1f}%) | L={L:<4d} | Tempo decorrido: {decorrido:5.1f}s"
+            )
+
+        if idx % 500 == 0:
+            gc.collect()
 
     with open(caminho_csv, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=colunas)
         writer.writeheader()
         writer.writerows(registros)
 
+    tempo_total = time.time() - t_inicio_global
     print("=" * 80)
-    print(f"Benchmark concluído com sucesso! Resultados em: {caminho_csv}")
+    print(
+        f"Benchmark concluído com sucesso em {tempo_total:.2f}s! ({len(registros)} registros em {caminho_csv})"
+    )
     print("=" * 80)
 
 
@@ -159,8 +179,26 @@ def main():
         "--tamanhos",
         type=int,
         nargs="+",
-        default=[2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096],
-        help="Lista de comprimentos de fita L a testar.",
+        default=None,
+        help="Lista explícita de comprimentos de fita L a testar.",
+    )
+    parser.add_argument(
+        "--min-l",
+        type=int,
+        default=1,
+        help="Valor mínimo de L (padrão: 1).",
+    )
+    parser.add_argument(
+        "--max-l",
+        type=int,
+        default=None,
+        help="Valor máximo de L para varredura contínua (ex: 4096).",
+    )
+    parser.add_argument(
+        "--passo",
+        type=int,
+        default=1,
+        help="Passo da varredura linear de L (padrão: 1).",
     )
     parser.add_argument(
         "--tipo",
@@ -189,8 +227,16 @@ def main():
 
     args = parser.parse_args()
 
+    if args.tamanhos is not None:
+        tamanhos = args.tamanhos
+    elif args.max_l is not None:
+        tamanhos = list(range(args.min_l, args.max_l + 1, args.passo))
+    else:
+        # Padrão: potências de 2
+        tamanhos = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
+
     executar_benchmark_poda(
-        tamanhos=args.tamanhos,
+        tamanhos=tamanhos,
         tipo_instancia=args.tipo,
         heuristica_nome=args.heuristica,
         incluir_torch=not args.sem_torch,
