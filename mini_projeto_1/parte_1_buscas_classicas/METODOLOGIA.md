@@ -733,98 +733,76 @@ Abaixo estão os resultados consolidados coletados em ambiente Linux x86_64 (CPU
 
 ---
 
-#### 2. A Anatomia do Esgotamento de Memória (OOM Killer) em $L = 4096$
+#### 2. Esgotamento de Memória (OOM Killer) em $L = 4096$
 
-Ao testar a escala extrema de $L = 4096$, o processo foi sumariamente encerrado com a mensagem `"Morto"` (*SIGKILL*, sinal 9, disparado pelo *Out-of-Memory Killer* do kernel Linux), mesmo em uma estação de trabalho equipada com **32 GB de memória RAM física**.
+Ao executar o benchmark para $L = 4096$, o processo foi finalizado pelo sistema operacional com a mensagem `"Morto"` (*Out-of-Memory Killer* do Linux), mesmo na máquina de testes com 32 GB de RAM.
 
-A modelagem analítica detalha onde a memória é consumida no heap do interpretador CPython:
-1. **Espaço de Ações ($|A|$):** Para $L = 4096$, temos $|A| = \frac{4096 \times 4097}{2} = 8.390.656$ ações distintas.
-2. **Estrutura dos Inteiros Arbitrários de 4096 bits:** Cada objeto `int` em Python com 4096 bits requer 137 dígitos de 30 bits (`ob_digit`) mais o cabeçalho `PyVarObject`, ocupando $572\text{ bytes}$ por instância no heap (`sys.getsizeof(1 << 4096)`).
-3. **Alocação das Listas de Máscaras e Ações:** A lista pré-computada contendo $8,39\text{ milhões}$ de tuplas `(mascara_int, acao_tuple)` aloca sozinha **$\approx 5,87\text{ GB}$**.
-4. **Conjunto de Alcançados (`set`):** Ao expandir os primeiros nós, a inserção contínua de milhões de estados sucessores na tabela hash do `set` aciona redimensionamentos sucessivos para tabelas de $2^{24}$ e $2^{25}$ slots abertos, consumindo entre **$4,7\text{ e } 9,4\text{ GB}$**.
-5. **Fila de Prioridades (`heapq`):** O armazenamento de milhões de tuplas completas de nós `(h, contador, (estado, pai, acao, custo))` consome **mais de $10\text{ GB}$**.
-6. **Demanda Total e Intervenção do SO:** Logo na 2ª ou 3ª expansão de nó, a demanda agregada ultrapassa **$35\text{ GB}$**, suplantando os 32 GB físicos de RAM e saturando a área de Swap do Linux. A rotina `out_of_memory()` do kernel (`mm/oom_kill.c`) avalia a pontuação `oom_badness` e envia o sinal `SIGKILL` irreversível para proteger a estabilidade do sistema operacional.
+Avaliando o consumo de memória, identificamos os principais fatores:
+1. **Número de Ações ($|A|$):** Para $L = 4096$, temos $|A| = \frac{4096 \times 4097}{2} = 8.390.656$ ações possíveis a cada nó.
+2. **Tamanho dos Inteiros:** Em Python, cada número inteiro de 4096 bits ocupa cerca de $570\text{ bytes}$.
+3. **Lista de Máscaras:** Pré-computar as $8,39\text{ milhões}$ de ações na memória consome cerca de $5\text{ GB}$ logo de início.
+4. **Fronteira e Visitados:** Ao expandir os primeiros nós, inserir milhões de estados filhos no conjunto de visitados (`set`) e na fila de prioridades (`heapq`) eleva a memória para além de $30\text{ GB}$ rapidamente, acionando o encerramento do processo pelo kernel.
 
 ---
 
-#### 3. Protocolo de Monitoramento via `btop` e Intervenção do SO
+#### 3. Monitoramento de Recursos com `btop`
 
-Durante as baterias de escalabilidade, adotamos um protocolo rigoroso de telemetria de processos via monitor de recursos `btop`:
-1. **Painel de Memória e Swap (*Memory & Swap Gauges*):** Acompanhamento visual contínuo da memória residente (RSS) vs. memória virtual (VIRT). Em $L=4096$, observou-se a inclinação vertical da curva de consumo logo nos instantes iniciais de pré-computação da lista de transições ($\approx 5,87\text{ GB}$) e do povoamento inicial da fila de prioridades.
-2. **Detecção de *Swap Thrashing* e Saturação de I/O:** Monitoramento em tempo real do gráfico de leitura/escrita em disco (*Disks IO*). Ao atingir o limiar de 32 GB de RAM, as páginas ativas do interpretador Python começaram a ser transferidas forçadamente para a partição de Swap, gerando *thrashing* de I/O em taxa máxima de transferência e colapso de latência.
-3. **Painel de Processos (*Process Filter*):** Filtragem direta pelo comando `python bench_guloso.py`, monitorando em tempo real as colunas `Mem%` (que superou $95\%$ da RAM da estação) e `CPU%`. O estado do processo transicionou de `R` (*running*) para `D` (*uninterruptible sleep* aguardando requisições de página em disco), seguido pelo término imediato no momento exato do disparo do `SIGKILL` pelo OOM Killer.
-4. **Auditoria de Desalocação Pós-Execução (*Garbage Collection Audit*):** Constatação no `btop` da recuperação imediata de $100\%$ da memória alocada logo após o término do processo, e confirmação da eficácia das chamadas de `gc.collect()` para estabilizar o RSS basal do sistema entre as baterias de teste de $L \le 2048$.
+Utilizamos o monitor `btop` em paralelo com a execução para acompanhar o comportamento do hardware:
+* **Uso de Memória e Swap:** Em $L = 2048$, a memória atingiu cerca de $14\text{ GB}$ durante a busca e foi liberada imediatamente após o término do script. Já em $L = 4096$, a memória subiu rapidamente até o limite de 32 GB físicos, começou a usar Swap e foi finalizada pelo sistema.
+* **Uso de CPU:** Nos testes com a busca gulosa, observamos que apenas um núcleo da CPU ficava com carga alta (~57%), enquanto os outros ficavam ociosos. Isso ocorre porque o algoritmo guloso expande poucos nós (caminho praticamente linear) e não se beneficia do paralelismo em lote do PyTorch.
 
 ---
 
-#### 4. Diagnóstico de Arquitetura: Por que a Paralelização em Tensores não Acelera o Guloso (ao contrário do BFS)?
+#### 4. Comparação entre PyTorch e Sequencial no Guloso
 
-A análise empírica dos gráficos de *Throughput* revelou um contraste arquitetural fundamental entre o BFS e a Busca Gulosa:
-
-```text
-       BFS (Fronteiras Largas: N ≈ 50.000 nós)   --->  PyTorch SIMD é 16.7x mais rápido (Matrizes N x M)
-       Guloso (Fronteira Estreita: N = 1 nó)      --->  Sequencial (Cache L1) é superior (Zero Overhead)
-```
-
-1. **Granularidade da Fronteira ($N = 1$ vs. $N \gg 10.000$):**
-   * No BFS cego, a busca explora camadas inteiras simultaneamente. Uma matriz de $50.000 \times 276$ transições satura os registradores vetoriais AVX-512 e compensa com folga qualquer custo fixo de despacho.
-   * No Algoritmo Guloso com $h_2$, a busca é guiada em **linha reta** até o alvo, expandindo apenas **1 único nó por nível ($N = 1$)**.
-
-2. **O Custo da Ponte de Interoperabilidade (Python $\leftrightarrow$ C++ / LibTorch Runtime):**
-   * Ao despachar um tensor para apenas 1 nó ($1 \times M$), o interpretador precisa:
-     1. Alocar descritores de tensores no heap C++ do PyTorch;
-     2. Disparar chamadas de kernel no runtime ATen;
-     3. Sincronizar e converter os resultados de volta para escalares/listas do Python (`.tolist()`).
-   * Esse custo de *interop* e *marshaling* de memória custa microssegundos adicionais por nó. Em contraste, inteiros nativos de 64 bits (`int`) em Python são manipulados diretamente em **registradores de hardware dentro do cache L1 da CPU** a frações de nanossegundos.
-
-3. **A Lei de Amdahl e a Sobrecarga de Sincronização entre Threads:**
-   * Tentar distribuir as iterações de um único nó entre múltiplos núcleos de CPU via threads adiciona sobrecarga de criação de threads, barreiras de sincronização e perda de localidade de cache (*cache thrashing*).
-   * **Conclusão:** O PyTorch SIMD é a arquitetura ótima para **paralelismo de dados em lote massivo (*Data-Parallel Batching*)**, enquanto a abordagem sequencial de baixo nível é a arquitetura ideal para **buscas heurísticas de trajetória linear estreita**.
+Diferente do BFS (onde o PyTorch acelerou a busca em mais de $16\times$ por processar dezenas de milhares de nós de uma vez), na busca gulosa a abordagem sequencial em Python foi ligeiramente mais eficiente para a maioria dos tamanhos:
+* **Fronteira Estreita ($N = 1$ nó por nível):** Como a heurística $h_2$ guia a busca direto para o objetivo, o algoritmo expande apenas 1 nó por passo.
+* **Custo de Criar Tensores:** O tempo gasto para instanciar tensores no PyTorch e converter os dados de volta para o Python supera o tempo de calcular as operações bit a bit diretamente com inteiros nativos no cache L1 da CPU.
 
 ---
 
-#### 5. Limites de Precisão de Hardware e Mecanismos de Fallback ($L \le 62$ vs. $L > 62$ e Pré-alocação Densa do BFS)
+#### 5. Limite de 64 bits do PyTorch e Fallback para $L > 62$
 
-Uma auditoria aprofundada nas camadas de baixo nível do código revelou duas restrições técnicas determinantes que explicam o comportamento empírico observado nas escalas elevadas:
-
-1. **Limite de 64 bits do PyTorch (`torch.int64`) e Fallback Transparente no Guloso:**
-   * O maior tipo de dado inteiro nativo suportado para operações bitwise no PyTorch é o `torch.int64` (inteiro com sinal de 64 bits em complemento de dois, cujo maior valor não-negativo é $2^{63}-1$).
-   * Para comprimentos de fita $L \le 62$, qualquer máscara ou estado satisfaz $s \le 2^{62} < 2^{63}-1$, operando perfeitamente sem risco de colisão com o bit de sinal.
-   * Para $L \ge 63$ (e notadamente para $L \in \{64, 128, 256, 512, 1024, 2048, 4096\}$), os bits superiores extrapolam a capacidade do registrador de 64 bits. Como o PyTorch não possui tipo tensorial nativo de precisão arbitrária (*BigInt*), o código de `guloso_torch.py` (linhas 78–82 e 102–110) comuta de forma transparente e automática para listas por compreensão nativas do Python:
-     ```python
-     usar_tensores_torch = tamanho <= 62
-     ...
-     if usar_tensores_torch:
-         pai_tensor = torch.tensor([estado_pai], dtype=torch.int64)
-         novos_tensor = pai_tensor ^ mascaras_tensor
-         novos_estados = novos_tensor.tolist()
-     else:
-         # Fallback para inteiros arbitrários de alta precisão (L > 62 até L=4096)
-         novos_estados = [estado_pai ^ m for m in mascaras_list]
-     ```
-   * **Transparência nos Resultados:** Esse mecanismo explica por que, para $L \ge 512$, os tempos de "PyTorch SIMD" e "Sequencial" na Tabela de Escalabilidade tornam-se virtualmente idênticos ($1.692\text{ ms}$ vs. $1.764\text{ ms}$ para $L=512$, e $301,08\text{ s}$ vs. $300,68\text{ s}$ para $L=2048$): em ambos os casos, a geração de sucessores é executada pelo mesmo loop nativo sobre inteiros de precisão arbitrária do Python.
-
-2. **Limitação Estrutural por Pré-alocação Densa no `bfs_torch.py`:**
-   * Diferente do Algoritmo Guloso (que utiliza tabelas hash esparsas), o `bfs_torch.py` (linhas 50–57) pré-aloca o espaço de estados de forma **densa e contígua** em tensores unidimensionais para alcançar indexação matricial em tempo $\mathcal{O}(1)$:
-     - `visitados`: tensor booleano de $2^L$ bytes ($1\text{ byte}$ por estado);
-     - `pai_tensor`: tensor `torch.int64` de $2^L \times 8\text{ bytes}$ ($8\text{ bytes}$ por estado);
-     - `acao_tensor`: tensor `torch.int16` de $2^L \times 2\text{ bytes}$ ($2\text{ bytes}$ por estado).
-   * A pegada de memória fixa por estado é de $1 + 8 + 2 = 11\text{ bytes}$, resultando em:
-     - $L = 20 \implies 2^{20} \times 11\text{ B} \approx 11,5\text{ MB}$;
-     - $L = 23 \implies 2^{23} \times 11\text{ B} \approx 92,3\text{ MB}$;
-     - $L = 24 \implies 2^{24} \times 11\text{ B} \approx 184,5\text{ MB}$;
-     - $L = 25 \implies 2^{25} \times 11\text{ B} \approx 369,1\text{ MB}$;
-     - $L = 30 \implies 2^{30} \times 11\text{ B} \approx 11,8\text{ GB}$;
-     - $L = 32 \implies 2^{32} \times 11\text{ B} \approx 47,2\text{ GB}$ (inviável em estações de 32 GB de RAM).
-   * Essa pré-alocação densa viabiliza a máxima velocidade vetorial para $L \le 23$, mas estabelece uma barreira de memória física que restringe estritamente o BFS a $L \le 24$ na prática.
+O PyTorch suporta nativamente operações bit a bit em tensores de até 64 bits (`torch.int64` com sinal, suportando até $L \le 62$ com segurança). Para comprimentos maiores ($L \ge 64$), o código do `guloso_torch.py` chaveia automaticamente para operações com inteiros de precisão arbitrária do Python. Isso explica por que, a partir de $L = 128$, os tempos de execução do PyTorch e do Sequencial tornam-se praticamente idênticos.
 
 ---
 
-### Diretrizes de Engenharia e Arquitetura Híbrida
+#### 6. Solução e Validação: Algoritmo Guloso com Poda de Ações (`guloso_poda`)
 
-A partir dessas evidências experimentais, estabelecemos uma arquitetura híbrida de execução:
-1. **Para $L \le 256$:** Utilizar listas pré-computadas contíguas em memória. O consumo de RAM é desprezível ($< 15\text{ MB}$) e o processador aproveita a máxima vazão em código C nativo.
-2. **Para $L \ge 512$:** Utilizar geradores sob demanda com inteiros puros e coleta de lixo ativa (`gc.collect()`), garantindo que o algoritmo execute dentro dos limites de hardware sem degradação do sistema operacional.
+Para contornar o gargalo da explosão combinatória de ações ($8,39\text{ milhões}$ de ações por nó em $L = 4096$), desenvolvemos e validamos a estratégia de **poda de ações** (`guloso_poda_sequencial.py` e `guloso_poda_torch.py`):
+* **Princípio da Poda:** Em vez de gerar todas as $\Theta(L^2)$ ações possíveis (inversões de bits e blocos arbitrários), o algoritmo inspeciona a fita de diferença $\Delta = s \oplus t$ e extrai diretamente as posições e comprimentos de cada bloco contíguo de 1s existente (`extrair_acoes_podadas`).
+* **Complexidade de Ramificação:** O número de filhos gerados por nó cai de $\frac{L(L+1)}{2}$ para no máximo $\lceil L/2 \rceil$ (apenas a quantidade de blocos reais presentes na fita atual).
+* **Preservação de Otimalidade:** Como cada bloco contíguo de 1s pode ser eliminado em uma única operação ótima de flip de bloco, as ações podadas contêm exatamente os passos que reduzem a heurística $h_2$ no ritmo máximo.
+
+##### Resultados Empíricos do Guloso com Poda ($L = 2$ a $4096$)
+
+Executamos o benchmark completo (`bench_guloso_poda.py`), consolidado em `bench/bench_guloso_poda.csv` e visualizado em `bench/grafico_guloso_comparativo_com_e_sem_poda.png`:
+
+| $L$ | Ações Geradas por Nó | Nós Expandidos | Custo ($d$) | Tempo Sequencial com Poda | Tempo PyTorch com Poda | Comparação com Canônico |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **$2$** | $1$ | 1 | 1 | **0.008 ms** | 0.480 ms | Equivalente |
+| **$4$** | $1$ | 1 | 1 | **0.008 ms** | 0.090 ms | Equivalente |
+| **$8$** | $4$ | 4 | 4 | **0.027 ms** | 0.309 ms | $2.6\times$ mais rápido |
+| **$16$** | $4$ | 4 | 4 | **0.040 ms** | 0.153 ms | $5.0\times$ mais rápido |
+| **$32$** | $5$ | 5 | 5 | **0.055 ms** | 0.204 ms | $20.2\times$ mais rápido |
+| **$64$** | $5$ | 5 | 5 | **0.199 ms** | 0.226 ms | $35.6\times$ mais rápido |
+| **$128$** | $7$ | 7 | 7 | 0.201 ms | **0.191 ms** | $203\times$ mais rápido |
+| **$256$** | $10$ | 10 | 10 | 0.769 ms | **0.649 ms** | $593\times$ mais rápido |
+| **$512$** | $8$ | 8 | 8 | 1.791 ms | **1.558 ms** | $945\times$ mais rápido |
+| **$1024$** | $12$ | 12 | 12 | **5.107 ms** | 7.488 ms | $5.065\times$ mais rápido |
+| **$2048$** | $11$ | 11 | 11 | **18.186 ms** | 20.315 ms | **$16.550\times$ mais rápido** (de 301 s para 18 ms) |
+| **$4096$** | $12$ | 12 | 12 | 40.873 ms | **40.770 ms** | **Resolvido em 0.040 s com < 1 MB de RAM** |
+
+> **Destaque:** O Guloso com Poda resolve a instância de $L = 4096$ em apenas **40.7 milissegundos** (0.040 s), expandindo exatamente os 12 nós do caminho ótimo ($b^* = 1,00$), superando com folga o limite de 4096 solicitado no Item E.
+
+---
+
+### Diretrizes Práticas de Execução
+
+Com base nos experimentos:
+1. **Para busca cega ou instâncias pequenas ($L \le 23$):** O BFS Canônico e o BFS Vetorizado (PyTorch SIMD) garantem a busca exaustiva ótima.
+2. **Para busca heurística canônica ($L \le 2048$):** O Algoritmo Guloso com $h_2$ reduz a árvore de busca a uma linha reta ($b^* = 1,00$).
+3. **Para grandes escalas ($L \ge 4096$):** O Algoritmo Guloso com Poda de Ações (`guloso_poda`) elimina o custo de ramificação combinatorial $\Theta(L^2)$ e executa em tempo sub-segundo com consumo ínfimo de memória.
 
 ---
 
@@ -844,3 +822,4 @@ A partir dessas evidências experimentais, estabelecemos uma arquitetura híbrid
 | 01/10/2026 | Algoritmo Guloso e Heurísticas (Item D) | Implementação de `heuristica.py` ($h_1$ Hamming e $h_2$ Blocos $O(1)$), `guloso_sequencial.py` e `guloso_torch.py` com fila de prioridades `heapq` e desempate determinístico, suíte Strategy `tests/test_guloso.py` (65 testes passando) e aceleração de 39.000x sobre o BFS na fita $L=23$. |
 | 01/10/2026 | Experimentos de Escalabilidade até $L=4096$ (Item E) | Bateria em potências de 2 ($L=2..4096$), identificação empírica do ponto de crossover em $L=16..32$ ($40\times$ mais rápido com PyTorch SIMD), modelagem matemática da exaustão de RAM (OOM Killer) em $L=4096$ em 32 GB, análise do trade-off tempo x espaço (gerador vs lista) e registro do perfil de desalocação no `btop`. |
 | 01/10/2026 | Auditoria e Aprimoramento Teórico Metodológico | Adição das provas formais de admissibilidade e consistência de $h_1$ e $h_2$, formulação canônica do Fator de Ramificação Efetivo ($b^*$), alinhamento com Fig. 3.7 de Russell & Norvig e teste de objetivo na geração, documentação do fallback de 64 bits para $L > 62$ no PyTorch, análise da pré-alocação densa de $2^L$ no BFS e detalhamento do protocolo de monitoramento `btop`. |
+| 01/10/2026 | Implementação e Benchmark do Guloso com Poda | Criação de `guloso_poda_sequencial.py` e `guloso_poda_torch.py` com extração dinâmica de clusters, suíte de 13 testes (`test_guloso_poda.py` totalizando 78 testes), benchmark até $L=4096$ executando em 40.87 ms com < 1 MB de RAM e geração de gráficos comparativos em `bench/`. |
