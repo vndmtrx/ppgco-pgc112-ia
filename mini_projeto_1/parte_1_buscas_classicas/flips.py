@@ -1,7 +1,12 @@
-"""Sub-rotinas simples para operações de bit-flip.
+"""Sub-rotinas para operações elementares de bit-flip.
 
-Adotamos números inteiros para representar a sequência de bits de forma
-rápida e leve na memória. A posição 0 representa o bit da direita (2^0).
+Fundamentação Teórica:
+- Russell & Norvig (2020, 4ª ed.), Capítulo 3, Seção 3.1.2 ("Formulating problems"):
+  Representação atômica do espaço de estados e definição das transições fundamentais.
+- Adotamos inteiros nativos de precisão arbitrária (int) manipulados via operadores
+  lógicos bitwise (XOR '^' e deslocamentos '<<'), garantindo representação canônica
+  leve e compatibilidade direta com conjuntos de estados visitados (reached/hash).
+- Custo uniforme unitário c(s, a, s') = 1 fixado formalmente conforme requisito do projeto.
 """
 
 # Regra do enunciado: qualquer flip tem custo 1

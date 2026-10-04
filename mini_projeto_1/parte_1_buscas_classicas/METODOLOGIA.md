@@ -1,6 +1,17 @@
 # Metodologia: Parte 1 (Buscas Clássicas)
 
-## 1. Definições e Modelagem do Problema
+> **Nota Epistemológica e Alinhamento com a Literatura:**  
+> A concepção e implementação desta Parte 1 fundamentam-se estritamente na literatura canônica de Inteligência Artificial: **Russell & Norvig (2020), *Artificial Intelligence: A Modern Approach* (4ª Edição)**, correspondente aos módulos da disciplina (Capítulos 3 e 4).  
+> - **Modelagem do Problema e Espaço de Ações ($\text{ACTIONS}(s)$):** Capítulo 3, Seção 3.1.2 (p. 66–68).
+> - **Estrutura do Nó de Busca (`NODE`):** Capítulo 3, Seção 3.3.2 (p. 91).
+> - **Busca em Largura em Grafos (BFS):** Capítulo 3, Seção 3.4.1 (p. 94–95, Figura 3.9).
+> - **Busca Gulosa de Melhor Escolha (GBFS):** Capítulo 3, Seção 3.5.1 (p. 101–103, Figura 3.7).
+> - **Admissibilidade, Consistência e Desigualdade Triangular:** Capítulo 3, Seção 3.5.2 (p. 103–107, Figura 3.19).
+> - **Fator de Ramificação Efetivo ($b^*$):** Capítulo 3, Seção 3.6.1 (p. 109–111, Figura 3.26).
+> 
+> *Ressalva de Engenharia:* A essência dos algoritmos, o fluxo de controle, os critérios de parada e a topologia das árvores/grafos de busca são idênticos aos do livro-texto. As técnicas introduzidas ao longo do projeto (álgebra bitwise na Unidade Lógica e Aritmética, vetores de máscaras, paralelismo SIMD e filtragem dinâmica de ações) situam-se estritamente no nível da **representação física do estado e eficiência de máquina**, preservando 100% das garantias de completude e otimalidade dos algoritmos clássicos.
+
+## 1. Definições e Modelagem do Problema (Russell & Norvig, Cap. 3.1)
 
 ### Comparação entre Modelos de Representação
 

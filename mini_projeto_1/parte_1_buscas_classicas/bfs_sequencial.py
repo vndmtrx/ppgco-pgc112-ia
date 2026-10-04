@@ -1,7 +1,13 @@
 """Algoritmo de Busca em Largura Sequencial Canônico (BFS).
 
-Implementa a busca em largura canônica (Russell & Norvig, 4ª ed., Figura 3.9)
-utilizando fila FIFO, conjunto de visitados e nós leves em tuplas (estado, pai, acao, custo).
+Fundamentação Teórica:
+- Russell & Norvig (2020, 4ª ed.), Capítulo 3, Seção 3.4.1 (p. 94-95), Figura 3.9:
+  Implementação canônica de busca em largura em grafos com fila FIFO e tabela reached.
+- Russell & Norvig (2020, 4ª ed.), Capítulo 3, Seção 3.3.2 (p. 91):
+  Estrutura do nó (NODE) com 4 componentes: STATE, PARENT, ACTION e PATH-COST (g),
+  representada aqui via tupla nativa (estado, pai, acao, custo).
+- Teste de objetivo antecipado na geração (Figura 3.9), com garantia de otimalidade
+  assegurada pelo custo uniforme e homogêneo c(s, a, s') = 1 (Seção 3.4.1).
 """
 
 import sys

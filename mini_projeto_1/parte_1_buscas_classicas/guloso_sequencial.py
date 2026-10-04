@@ -1,10 +1,13 @@
 """Implementação canônica do Algoritmo Guloso (Greedy Best-First Search) Sequencial.
 
-Baseado estritamente em Russell & Norvig (4ª Edição, Capítulo 3, Seção 3.5.1):
-- Função de avaliação puramente heurística: f(n) = h(n).
-- Fila de prioridades com heapq e desempate determinístico FIFO: (h, contador, nó).
-- Tabela de alcançados (reached) para poda de ciclos no grafo.
-- Representação leve com tuplas nativas: (estado, pai, acao, custo).
+Fundamentação Teórica:
+- Russell & Norvig (2020, 4ª Edição), Capítulo 3, Seção 3.5.1 (p. 101–103), Figura 3.7:
+  Algoritmo BEST-FIRST-SEARCH com função de avaliação puramente heurística f(n) = h(n).
+- Russell & Norvig (2020, 4ª Edição), Capítulo 3, Seção 3.3.2 (p. 91):
+  Estrutura do nó (NODE): (estado, pai, acao, custo).
+- Desempate determinístico FIFO no min-heap (heapq): tuplas (h, contador_fifo, no).
+- Poda de ciclos: tabela de alcançados (reached), descartando estados repetidos em O(1).
+- Heurísticas aplicadas: h1 (Hamming) e h2 (Blocos contíguos O(1)), detalhadas na Seção 3.5.2.
 """
 
 import heapq

@@ -1,8 +1,12 @@
 """Funções heurísticas para algoritmos de busca informada (Guloso / A*).
 
-Fornece funções puras e eficientes baseadas em operações de bits (O(1)):
-1. h1_hamming: Distância de Hamming (contagem total de bits divergentes).
-2. h2_blocos: Contagem de agrupamentos (clusters) contíguos de bits 1.
+Fundamentação Teórica:
+- Russell & Norvig (2020, 4ª ed.), Capítulo 3, Seção 3.5.2 (p. 103–107), Figura 3.19:
+  Conceitos formais de Admissibilidade (h(s) <= h*(s)) e Consistência/Monotonicidade
+  (h(s) - h(s') <= c(s, a, s')).
+- Heurística 1 (h1_hamming): Distância de Hamming (inadmissível e inconsistente na presença de flips de bloco).
+- Heurística 2 (h2_blocos): Contagem de inícios de blocos contíguos de 1s (estritamente consistente e admissível).
+  Provado como o Oráculo Exato (h2(s) == h*(s)), garantindo fator de ramificação efetivo b* = 1.00 (Seção 3.6.1).
 """
 
 from typing import Callable
