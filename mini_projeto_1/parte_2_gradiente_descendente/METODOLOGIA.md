@@ -27,6 +27,40 @@ A transição da Parte 1 para a Parte 2 representa uma mudança fundamental de p
    - Um valor `1.0` indica ativação plena (o antigo bit 1), `0.0` indica inativação plena (o alvo desejado), e qualquer número intermediário (como `0.6` ou `0.2`) representa um estado de transição contínua.
    - Com essa representação, o problema deixa de exigir buscas cegas por vizinhança combinatória e passa a permitir o uso do cálculo diferencial: calculamos a inclinação exata da superfície de erro e deslizamos gradualmente em direção ao ponto de mínimo.
 
+### 1.2. Por que o objetivo é "zerar o array"?
+
+No enunciado, a sequência alvo foi fixada como $\mathbf{y} = [0, 0, \dots, 0]$. 
+
+Ao definir a função de erro como a distância quadrática euclidiana:
+$$\mathcal{L}(\mathbf{x}) = \sum_{k=1}^L (x_k - y_k)^2$$
+
+Como cada $y_k = 0$, a função se reduz a:
+$$\mathcal{L}(\mathbf{x}) = \sum_{k=1}^L x_k^2 = \|\mathbf{x}\|_2^2$$
+
+**O insight fundamental:**
+- Minimizar $\mathcal{L}(\mathbf{x})$ significa empurrar todos os elementos do vetor simultaneamente em direção à origem (ao vetor nulo).
+- O processo de "resolver o problema" deixa de ser uma busca em árvore e se torna o ato de drenar a energia ou magnitude do vetor $\mathbf{x}$ até que todos os seus componentes cheguem a zero.
+- Cada iteração do gradiente descendente calcula a inclinação (derivada) dessa parábola para cada coordenada e subtrai uma fração desse gradiente multiplicada pela taxa de aprendizado $\eta$.
+
+---
+
+### 1.3. A Intuição do Erro e a Dedução do Passo Crítico ($\eta > 1/2$)
+
+Para mim, a função de erro deixou de ser uma equação abstrata e passou a fazer sentido como uma pergunta simples: **"quão longe cada número da fita está do valor desejado (zero)?"**.
+
+Quando a fita começa cheia de valores ligados (em 1.0), a distância até o objetivo é grande, logo o erro total é alto. Conforme o algoritmo avança e empurra esses números para 0.0, a distância de cada um até o zero vai sumindo, até que o erro total finalmente zera. É como drenar uma caixa d'água até esvaziar completamente.
+
+A regra para atualizar a fita usa a derivada desse erro. A derivada nada mais é do que a taxa de variação (como a velocidade que aprendemos na física do ensino médio), indicando a inclinação da ladeira e a força com que o erro precisa ser reduzido. Pela regra de derivação polinomial (a famosa "regra do tombo"), a inclinação de uma função quadrática dobra o valor da posição atual.
+
+Foi a partir dessa inclinação que finalmente entendi por que o enunciado alerta que uma taxa de aprendizado ($\eta$) maior que 0.5 é um perigo:
+- Se um número começa em 1.0 e precisa chegar a 0.0, a distância real que ele precisa percorrer é de exatamente 1 unidade.
+- Como a inclinação da ladeira no ponto inicial vale 2.0 (o dobro de 1.0), o tamanho do passo dado pelo algoritmo é a taxa de aprendizado multiplicada por essa inclinação de 2.0.
+- Se escolhermos uma taxa de 0.1, damos um passo de 0.2 e chegamos em 0.8 (vamos nos aproximando com calma).
+- Se escolhermos uma taxa de 0.5, o passo dá exatamente 1.0, e acertamos o zero em cheio logo na primeira tentativa.
+- Mas se escolhermos uma taxa maior que 0.5 (como 0.6), o tamanho do salto vira 1.2. Como a distância até o zero era de apenas 1.0, o algoritmo dá um salto grande demais, passa direto do ponto (o chamado *overshoot*) e aterrissa em -0.2.
+
+Esse resultado negativo quebra a lógica do problema: em uma fita inspirada em lógica fuzzy e sigmoides, os valores precisam obrigatoriamente ficar entre 0.0 e 1.0. Um valor negativo não faz sentido físico aqui e causa instabilidade e oscilações no algoritmo.
+
 ---
 
 ## 2. Decisões de Design e Engenharia
@@ -54,3 +88,4 @@ Seguindo o padrão de decisões do projeto:
 | 16/09/2026 | Inicialização | Estrutura criada e enunciados mapeados. |
 | 04/10/2026 | Revisão Teórica e Referências | Mapeamento das referências bibliográficas canônicas (Russell & Norvig, 4ª ed.) nos algoritmos e na metodologia da Parte 1. |
 | 05/10/2026 | Consolidação Conceitual | Registro da transição discreto $\to$ contínuo (paralelo Perceptron/Sigmoide), interpretação da fita como 23 dimensões e objetivo de puxar as coordenadas para a origem. |
+| 06/10/2026 | Dedução do Passo Crítico | Dedução da perda quadrática, da regra do tombo ($2x$), do perigo de overshoot para $\eta > 0.5$ e da analogia do coelho de Zenão. |
