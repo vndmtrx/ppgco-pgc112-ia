@@ -1,58 +1,103 @@
-# Parte 1: Buscas Clássicas
+# Parte 1: Buscas Clássicas em Grafos
 
-Este exercício aborda a implementação e comparação de algoritmos clássicos de busca em grafos (Busca em Largura - BFS e Algoritmo Guloso - Greedy) para solucionar o problema de transformação de sequências de bits.
-
----
-
-## Enunciado
-
-### A. Descrição do Problema
-
-Dada uma sequência inicial de $L$ bits, procuramos a sequência de transformações do tipo *bit-flip* que a transforma em uma sequência final. O custo de cada operação é definido como:
-
-1. Flip de 1 bit tem **custo 1**;
-2. Flip de $n$ bits consecutivos tem **custo 1**.
-
-**Instância de teste:**
-- Sequência inicial: `00001001000011001100111`
-- Sequência desejada: `00000000000000000000000`
+Este módulo implementa e compara algoritmos clássicos de busca em espaço de estados (Busca em Largura — BFS e Busca Gulosa — Greedy) para a transformação de sequências binárias discretas.
 
 ---
 
-### B. Subrotinas para flips
+## 1. Ambiente Virtual (`.venv`) e Instalação
 
-Implementar funções que realizem as operações de *bit-flip* descritas acima:
-- Flip de um único bit na posição especificada.
-- Flip de um bloco de $n$ bits consecutivos a partir de um índice inicial.
+Para executar este módulo isoladamente ou a partir da raiz:
 
----
+```bash
+# Na pasta parte_1_buscas_classicas/
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
 
-### C. Algoritmo BFS
-
-Implementar o algoritmo **BFS (Breadth-First Search)** para encontrar a sequência de operações de menor custo que transforma a sequência inicial na final.
-
-**Requisitos da resposta:**
-- Retornar a sequência exata de operações realizadas.
-- Retornar o custo total acumulado.
-
----
-
-### D. Algoritmo Guloso (Greedy)
-
-Defina uma heurística que contenha alguma informação sobre o estado alvo.
-
-**Requisitos:**
-- Justificar formalmente a escolha da função heurística.
-- Implementar o algoritmo guloso utilizando a heurística definida.
-- Retornar a sequência de transformações obtida e o custo total.
+Dependências principais:
+- `torch>=2.0.0` (Implementações matriciais e paralelizáveis em tensor)
+- `matplotlib>=3.7.0` (Gráficos de escalabilidade de $L=2$ a $L=4096$)
+- `pytest>=7.4.0` (Suíte com 69 testes unitários)
 
 ---
 
-### E. Desempenho
+## 2. Comandos dos Testes Automatizados (`pytest`)
 
-1. Gere um conjunto de sequências aleatórias de bits.
-2. Selecione $N$ pares `(inicial, final)` desse conjunto.
-3. Execute os algoritmos BFS e Greedy em cada par.
-4. Faça um levantamento das estatísticas de desempenho (e.g., número médio de operações, custo médio, tempo de execução, nós explorados).
-5. Gere um gráfico para comparar o desempenho dos algoritmos em função do tamanho da sequência:
-   $$L \in \{2, 4, 8, \dots, 4096\}$$
+A suíte possui **69 testes unitários** automatizados aprovados:
+
+```bash
+# Rodar todos os testes da Parte 1
+pytest tests/ -v
+```
+
+Módulos testados:
+- `tests/test_flips.py`: Operações de bit-flip individual e de blocos contíguos.
+- `tests/test_bfs.py`: Solução ótima do BFS (5 passos exatos na fita de 23 bits).
+- `tests/test_heuristica.py`: Admissibilidade e monotonicidade da heurística de blocos $h_2$ vs. Hamming $h_1$.
+- `tests/test_guloso.py`: Busca gulosa direcionada.
+- `tests/test_guloso_poda.py`: Eficácia da poda de ciclos para prevenir loops infinitos.
+- `tests/test_utils.py`: Funções utilitárias de manipulação e métricas.
+
+---
+
+## 3. Comandos para Executar os Experimentos e Benchmarks
+
+### 3.1. Execução do BFS na Fita Canônica de 23 Bits
+Retorna a solução de custo mínimo garantido (5 passos):
+```bash
+python3 -c "
+from bfs_sequencial import bfs_sequencial
+res = bfs_sequencial('00001001000011001100111', '00000000000000000000000')
+print('=== BFS Exato ===')
+print(f'Custo Total: {res[\"custo_total\"]}')
+print('Passos:')
+for i, estado in enumerate(res[\"caminho\"]):
+    print(f'  {i}: {estado}')
+"
+```
+
+### 3.2. Execução do Algoritmo Guloso com Poda de Ciclos (Heurística de Blocos $h_2$)
+Executa a busca informada convergindo em menos de 0,2 milissegundos:
+```bash
+python3 -c "
+from guloso_poda_sequencial import guloso_poda_sequencial
+from heuristica import h2_blocos
+res = guloso_poda_sequencial('00001001000011001100111', '00000000000000000000000', h2_blocos)
+print('=== Algoritmo Guloso com Poda ===')
+print(f'Custo: {res[\"custo_total\"]} | Nós Expandidos: {res[\"nos_expandidos\"]}')
+for i, (op, est) in enumerate(zip(res[\"operacoes\"], res[\"caminho\"][1:]), start=1):
+    print(f'  Passo {i}: {op} -> {est}')
+"
+```
+
+### 3.3. Execução do Benchmark e Geração dos Gráficos de Escalabilidade ($L=2$ a $L=4096$)
+```bash
+# Executa a bateria de medição de tempo e nós explorados
+python3 bench_guloso_poda.py
+
+# Plota os gráficos comparativos de desempenho
+python3 plota_graficos_guloso_poda.py
+```
+
+---
+
+## 4. Estrutura de Arquivos
+
+```text
+parte_1_buscas_classicas/
+├── README.md                      # Este guia
+├── METODOLOGIA.md                 # Registro de decisões e fundamentação teórica
+├── requirements.txt               # Dependências Python
+├── pytest.ini                     # Configuração do pytest
+├── flips.py                       # Subrotinas de bit-flip
+├── heuristica.py                  # Heurísticas h1 (Hamming) e h2 (Blocos contíguos)
+├── bfs_sequencial.py              # Algoritmo BFS exato
+├── guloso_sequencial.py           # Algoritmo Guloso clássico
+├── guloso_poda_sequencial.py      # Algoritmo Guloso com poda de ciclos
+├── bench_guloso_poda.py           # Benchmark de escalabilidade
+├── plota_graficos_guloso_poda.py  # Geração de gráficos de desempenho
+├── utils.py                       # Conversões de bits e validações
+└── tests/                         # 69 testes automatizados
+```
