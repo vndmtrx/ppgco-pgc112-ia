@@ -119,6 +119,15 @@ Essa penalidade funciona como uma **inércia espacial (ou tensão superficial)**
 
 ---
 
+### 1.7. A Analogia da Montanha e do Rio (Alinhamento com o Professor da Disciplina)
+
+Ao discutir essas intuições diretamente com o professor da disciplina (Prof. Gilberto Medeiros Nakamura), a metáfora que sintetizou perfeitamente a mecânica do algoritmo foi a descida da montanha em direção ao vale:
+- **O gradiente como curso do rio:** *"O gradiente é como descer uma montanha. Você varia o passo e vê como altera a altura (a função). O rio sempre descreve um gradiente."* A água não toma decisões discretas; ela simplesmente segue a inclinação máxima do relevo rumo ao ponto mais baixo.
+- **A anulação no ponto de mínimo:** *"Num ponto de mínimo, o gradiente se anula (como num vale entre duas montanhas, pois a inclinação é nula)"*. Quando a fita atinge o objetivo ($0.0$), a inclinação da parábola ($2x$) se extingue, cessando naturalmente o movimento.
+- **Passos mais curtos perto do vale:** *"Perto do mínimo, o gradiente se aproxima de zero. Daí o motivo dos passos serem mais curtos perto dos mínimos."* Isso valida formalmente a analogia do coelho de Zenão e o produto $(\eta \times \text{Derivada})$: a própria física da superfície atua como um amortecedor suave, desacelerando a descida conforme a fita repousa no chão.
+
+---
+
 ## 2. Decisões de Design e Engenharia
 
 ### Decisão 1: Mapeamento Discreto-Contínuo
@@ -146,3 +155,4 @@ Seguindo o padrão de decisões do projeto:
 | 05/10/2026 | Consolidação Conceitual | Registro da transição discreto $\to$ contínuo (paralelo Perceptron/Sigmoide), interpretação da fita como 23 dimensões e objetivo de puxar as coordenadas para a origem. |
 | 06/10/2026 | Dedução do Passo Crítico | Dedução da perda quadrática, da regra do tombo ($2x$), do perigo de overshoot para $\eta > 0.5$ e da analogia do coelho de Zenão. |
 | 07/10/2026 | Modelagem de Custo e Inércia | Formulação da analogia dos paraquedistas, tensão de elásticos, miolo livre vs. bordas e o efeito de desfoque/dissipação. |
+| 08/10/2026 | Síntese e Alinhamento Docente | Registro da analogia da montanha e do rio (Prof. Nakamura) e validação da convergência suave no vale nulo. |
