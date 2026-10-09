@@ -210,18 +210,7 @@ def plotar_graficos_poda(
         l_canon = np.array([d["tamanho"] for d in seq_canon])
         t_canon = np.array([d["tempo_ms"] for d in seq_canon])
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5), dpi=300)
-        ax1.plot(l_canon, t_canon, "o--", color="#D32F2F", label="Guloso Canônico (Sem Poda)", lw=2, markersize=5)
-        if denso:
-            ax1.plot(l_seq, t_seq_suave, "-", color="#2E7D32", label="Guloso com Poda (Tendência Suave)", lw=2.5)
-        else:
-            ax1.plot(l_seq, t_seq, "o-", color="#2E7D32", label="Guloso com Poda de Ações", lw=2, markersize=5)
-
-        ax1.set_title("Comparação Direta - Escala Linear", fontsize=12, fontweight="bold")
-        ax1.set_xlabel("Comprimento da Fita (L)", fontsize=11)
-        ax1.set_ylabel("Tempo Total (ms)", fontsize=11)
-        ax1.grid(True, linestyle="--", alpha=0.5)
-        ax1.legend(frameon=True)
+        fig, ax2 = plt.subplots(figsize=(7, 4.8), dpi=300)
 
         ax2.plot(l_canon, np.maximum(1e-3, t_canon), "o--", color="#D32F2F", label="Guloso Canônico (Sem Poda)", lw=2, markersize=5)
         if denso:
@@ -230,18 +219,17 @@ def plotar_graficos_poda(
             ax2.plot(l_seq, np.maximum(1e-3, t_seq), "o-", color="#2E7D32", label="Guloso com Poda de Ações", lw=2, markersize=5)
 
         ax2.set_yscale("log")
-        ax2.set_title("Comparação Direta - Escala Logarítmica", fontsize=12, fontweight="bold")
-        ax2.set_xlabel("Comprimento da Fita (L)", fontsize=11)
-        ax2.set_ylabel("Tempo Total (ms) [Escala Log]", fontsize=11)
+        ax2.set_title("Tempo de Execução: Com vs. Sem Poda (Escala Logarítmica)", fontsize=12, fontweight="bold", pad=10)
+        ax2.set_xlabel("Comprimento da Fita ($L$)", fontsize=11, fontweight="bold")
+        ax2.set_ylabel("Tempo Total (ms) [Escala Log]", fontsize=11, fontweight="bold")
         ax2.grid(True, which="both", linestyle="--", alpha=0.5)
-        ax2.legend(frameon=True)
+        ax2.legend(frameon=True, fontsize=10)
 
-        fig.suptitle("Impacto da Poda de Ações: Guloso Canônico vs. Guloso com Poda (até L=4096)", fontsize=14, fontweight="bold")
         plt.tight_layout()
         f3 = os.path.join(dir_saida, "grafico_guloso_comparativo_com_e_sem_poda.png")
         fig.savefig(f3)
         plt.close(fig)
-        print(f"Salvo: {f3}")
+        print(f"Salvo (apenas log): {f3}")
 
 
 def main():

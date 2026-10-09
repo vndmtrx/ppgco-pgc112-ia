@@ -295,41 +295,27 @@ def gerar_graficos_individuais(registros: list[dict], pasta: str = DIR_BENCH) ->
     print(f"📈 [1/4] Gráfico Comparativo de Tempo (Linear vs. Log) salvo em: '{caminho1}'")
 
     # =========================================================================
-    # GRÁFICO 2: Complexidade Estrutural no Grafo (Linear vs. Logarítmico)
+    # GRÁFICO 2: Complexidade Estrutural no Grafo (Apenas Escala Logarítmica)
     # =========================================================================
-    fig2, (ax2_lin, ax2_log) = plt.subplots(1, 2, figsize=(16, 5.8), dpi=300)
+    fig2, ax2_log = plt.subplots(figsize=(7, 4.8), dpi=300)
 
-    # (a) Escala Linear
-    ax2_lin.plot(valores_l, geomean_nos, "D-", color="#37474f", linewidth=2.5, markersize=6, label="Nós Expandidos (Média Geométrica)")
-    ax2_lin.fill_between(valores_l, p25_nos, p75_nos, color="#78909c", alpha=0.25, label="Corredor Interquartil (IQR: P25 - P75)")
-
-    ax2_lin.set_xlabel("Comprimento da Fita ($L$)", fontweight="bold")
-    ax2_lin.set_ylabel("Quantidade de Nós Expandidos", fontweight="bold")
-    ax2_lin.set_title("(a) Escala Linear: Explosão Combinatória $O(b^d)$", fontweight="bold", pad=12)
-    ax2_lin.set_xticks(valores_l)
-    ax2_lin.set_xticklabels([str(l) for l in valores_l])
-    ax2_lin.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
-    ax2_lin.legend(loc="upper left", frameon=True)
-
-    # (b) Escala Logarítmica
     ax2_log.plot(valores_l, geomean_nos, "D-", color="#37474f", linewidth=2.5, markersize=6, label="Nós Expandidos (Média Geométrica)")
     ax2_log.fill_between(valores_l, p25_nos, p75_nos, color="#78909c", alpha=0.25, label="Corredor Interquartil (IQR: P25 - P75)")
 
     ax2_log.set_yscale("log")
-    ax2_log.set_xlabel("Comprimento da Fita ($L$)", fontweight="bold")
-    ax2_log.set_ylabel("Quantidade de Nós Expandidos (Escala Logarítmica)", fontweight="bold")
-    ax2_log.set_title("(b) Escala Logarítmica: Taxa Assintótica de Expansão", fontweight="bold", pad=12)
+    ax2_log.set_xlabel("Comprimento da Fita ($L$)", fontweight="bold", fontsize=11)
+    ax2_log.set_ylabel("Quantidade de Nós Expandidos (Escala Log)", fontweight="bold", fontsize=11)
+    ax2_log.set_title("BFS: Nós Expandidos vs. Comprimento $L$ (Escala Logarítmica)", fontweight="bold", fontsize=12, pad=10)
     ax2_log.set_xticks(valores_l)
     ax2_log.set_xticklabels([str(l) for l in valores_l])
     ax2_log.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
-    ax2_log.legend(loc="upper left", frameon=True)
+    ax2_log.legend(loc="upper left", frameon=True, fontsize=10)
 
-    fig2.suptitle("Complexidade Estrutural no Grafo: Escala Linear vs. Escala Logarítmica", fontsize=14, fontweight="bold", y=1.02)
     caminho2 = os.path.join(pasta, "grafico_bfs_nos_expandidos.png")
     fig2.tight_layout()
     fig2.savefig(caminho2, dpi=300, bbox_inches="tight")
     plt.close(fig2)
-    print(f"🌲 [2/4] Gráfico Comparativo de Nós Expandidos (Linear vs. Log) salvo em: '{caminho2}'")
+    print(f"🌲 [2/4] Gráfico de Nós Expandidos (Apenas Log) salvo em: '{caminho2}'")
 
     # =========================================================================
     # GRÁFICO 3: Throughput de Processamento (Linear vs. Logarítmico)
