@@ -128,6 +128,76 @@ Ao discutir essas intuições diretamente com o professor da disciplina (Prof. G
 
 ---
 
+### 1.8. Comprovação Empírica dos Regimes de Passo no Jupyter Notebook
+
+Para validar toda a teoria na prática antes de modularizar o código, montei um ambiente iterativo no Jupyter Notebook com uma fita reduzida `[0.0, 1.0, 0.0]`, monitorando a função de perda quadrática $\mathcal{L} = \sum x^2$ e o gradiente $\nabla \mathcal{L} = 2x$ gerado automaticamente pelo PyTorch (`autograd`).
+
+Executei baterias de 50 iterações variando sistematicamente a taxa de aprendizado ($\eta$), comprovando 4 comportamentos empíricos fundamentais:
+
+1. **Regime Lento e Cauteloso ($\eta = 0.1$):**
+   - O valor decaiu de forma estritamente suave e monótona ($1.00 \to 0.80 \to 0.64 \to 0.51 \dots$).
+   - A inclinação foi diminuindo a cada passada (o amortecimento natural), exigindo **cerca de 45 passos** para que o erro ficasse abaixo de $10^{-6}$. Demonstra com clareza a corrida do coelho de Zenão.
+
+2. **Regime Acelerado e Estável ($\eta = 0.2$):**
+   - A descida foi duas vezes mais agressiva ($1.00 \to 0.60 \to 0.36 \dots$).
+   - O erro convergiu para zero na metade do tempo (em torno da iteração 20), sem nenhuma instabilidade ou oscilação.
+
+3. **Regime Crítico Perfeito ($\eta = 0.5$):**
+   - Como a distância até a origem é $1.0$ e o gradiente inicial é $2.0$, o passo $\Delta = 0.5 \times 2.0 = 1.0$.
+   - **Resultado:** A fita atingiu exatamente `[0.0, 0.0, 0.0]` no **Passo 1**, zerando a função de perda imediatamente em uma única iteração. É o ponto analítico ótimo de convergência em passo único para parábolas puras.
+
+4. **Regimes com Overshoot e Oscilação Amortecida ($\eta = 0.6$ e $\eta = 0.8$):**
+    - **Para $\eta = 0.6$:** No primeiro passo o valor saltou para **$-0.20$** (passou do chão e ficou negativo!). Como o número agora é negativo, na iteração seguinte a ladeira empurrou para o lado oposto, e o valor voltou para $+0.04$, depois $-0.008$.
+    - **Para $\eta = 0.8$:** O salto foi ainda mais brusco, aterrissando em **$-0.60$** no primeiro passo, depois $+0.36$, depois $-0.216$.
+    - **Conclusão:** Valores de $\eta > 0.5$ comprovadamente quebram a restrição de domínio da lógica fuzzy ($[0.0, 1.0]$) e produzem uma oscilação pendular (quicando entre positivo e negativo) até a energia do sistema se dissipar.
+
+---
+
+### 1.9. A Geometria da Bacia: Desmistificando o "Ponto de Sela" e a Relação com Tangente Hiperbólica ($\tanh$)
+
+Durante a criação dos gráficos de curvas de nível, surgiram dois insights conceituais de extrema relevância:
+
+1. **Por que a superfície não é uma sela (Saddle Point)?**
+   - Inicialmente, imaginei que a busca pelo melhor $\eta$ pudesse formar uma superfície em sela (como num problema de *minimax*, onde uma direção quer maximizar e a outra quer minimizar).
+   - Compreendi que, no nosso problema, ambas as componentes da perda buscam a minimização simultânea: tanto a distância ao solo ($\sum x^2 \to 0$) quanto a quebra de vizinhos ($C(\mathbf{z}) \to 0$).
+   - O relevo é uma **bacia parabólica convexa circular em $\mathbb{R}^3$** ($z = x_1^2 + x_2^2$), onde todas as direções inclinam para o mesmo fundo do vale. 
+   - Ao desenhar as trajetórias descendo de múltiplos ângulos na bacia, ficou evidente que a física é perfeitamente simétrica: taxas $\eta \le 0.5$ convergem em linha reta para o centro, enquanto $\eta = 0.6$ atravessa a estrela da origem e perfura o lado oposto em $(-0.2, -0.2)$.
+
+2. **Por que o overshoot viola o domínio e a conexão com a Tangente Hiperbólica ($\tanh$):**
+   - O overshoot negativo só é uma falha grave aqui porque adotamos a semântica da lógica fuzzy e da função sigmoide, cuja imagem está estritamente contida em $[0.0, 1.0]$. Um valor negativo representa probabilidade/ativação inexistente.
+   - Refleti sobre como modelos mais maduros de redes neurais resolveram essa limitação adotando a **Tangente Hiperbólica ($\tanh$)**: uma função suave centrada na origem, variando no intervalo $[-1.0, 1.0]$, onde valores negativos são permitidos e representam inibições simétricas.
+
+3. **Verificação Formal e Engenharia de Software:**
+   - Para assegurar que o módulo `gd_puro.py` atende a todos os requisitos matemáticos, implementei uma suíte de testes com `pytest` (`tests/test_gd_puro.py`).
+   - Foram validadas com 100% de sucesso a equivalência entre o gradiente analítico ($2x$) e o `autograd`, o término em 1 passo analítico para $\eta = 0.5$, a detecção precisa de overshoot para $\eta = 0.6$ e a convergência estrita da fita de 23 bits abaixo do limiar de $10^{-6}$.
+
+---
+
+### 1.10. A Dinâmica da Função de Custo Regularizada ($J(\mathbf{x}) = \mathcal{L} + \lambda C$) e a "Chicotada Elástica"
+
+Para atender ao Item III.D do enunciado, implementei a função de custo contíguo que penaliza a tensão de cisalhamento entre vizinhos:
+$$C(\mathbf{x}) = \sum_{k=1}^{L-1} (x_{k+1} - x_k)^2$$
+
+Testando no Jupyter Notebook a sequência de teste `[0, 1, 0, 0, 1, 1, 1, 0]` fixando a taxa $\eta = 0.1$ e variando o hiperparâmetro de acoplamento $\lambda \in \{0.0, 0.5, 20.0\}$, obtive uma descoberta empírica fundamental:
+
+1. **Sem regularização ($\lambda = 0.0$):**
+   - O gradiente puro atua de forma independente. O bit solitário e os bits do bloco sofrem exatamente a mesma força de descida ($2x_i = 2.0$). 
+   - A convergência é asséptica e sem comunicação espacial.
+
+2. **Acoplamento equilibrado ($\lambda = 0.5$):**
+   - A dinâmica espacial opera como previsto: o miolo do bloco de 3 bits (posição 5) tem tensão interna zero e desce com força $2.0$.
+   - O bit solitário (posição 1) sofre tração dupla das duas fronteiras zeradas, triplicando a força de restauração.
+   - Os elementos em zero vizinhos aos blocos sobem ligeiramente para suavizar o degrau (o efeito de rampa/desfoque), e a sequência se assenta como uma onda amortecida, convergindo suavemente para zero no passo 25.
+
+3. **Super-acoplamento e a Chicotada Elástica Divergente ($\lambda = 20.0$):**
+   - O teste revelou um fenômeno espetacular: com $\lambda = 20.0$ e $\eta = 0.1$, a perda explodiu de $84.0$ no passo 1 para $1.57 \times 10^8$ no passo 4 e atingiu o infinito (`inf`, com valores em $10^{27}$) antes do passo 20!
+   - **A dedução analítica:** A inclusão da penalidade de corda adiciona termos da forma $2\lambda(x_i - x_{i-1}) + 2\lambda(x_i - x_{i+1})$. Na pior configuração (alternância entre 0 e 1), o módulo do gradiente atinge até $2 + 4\lambda$. Para $\lambda = 20$, essa força salta para $82.0$.
+   - Ao multiplicar por $\eta = 0.1$, o salto efetivo por iteração vira $0.1 \times 82.0 = \mathbf{8.2}$!
+   - Como qualquer passo efetivo maior que $1.0$ gera divergência explosiva (conforme demonstrado por Smola na pág. 502), o sistema sofreu uma **chicotada elástica incontrolável**, ejetando os valores para fora de qualquer escala finita.
+   - **Conclusão de Engenharia para o Relatório:** Os hiperparâmetros $\lambda$ e $\eta$ são intimamente acoplados. Aumentar a penalidade de bloco $\lambda$ torna a superfície de perda muito mais íngreme, exigindo obrigatoriamente a redução proporcional da taxa de aprendizado ($\eta \le \frac{1}{2 + 4\lambda}$) para garantir a estabilidade numérica.
+
+---
+
 ## 2. Decisões de Design e Engenharia
 
 ### Decisão 1: Mapeamento Discreto-Contínuo
@@ -156,3 +226,8 @@ Seguindo o padrão de decisões do projeto:
 | 06/10/2026 | Dedução do Passo Crítico | Dedução da perda quadrática, da regra do tombo ($2x$), do perigo de overshoot para $\eta > 0.5$ e da analogia do coelho de Zenão. |
 | 07/10/2026 | Modelagem de Custo e Inércia | Formulação da analogia dos paraquedistas, tensão de elásticos, miolo livre vs. bordas e o efeito de desfoque/dissipação. |
 | 08/10/2026 | Síntese e Alinhamento Docente | Registro da analogia da montanha e do rio (Prof. Nakamura) e validação da convergência suave no vale nulo. |
+| 11/10/2026 | Comprovação Prática no Jupyter | Execução experimental dos 4 regimes de taxa de aprendizado ($\eta \in \{0.1, 0.2, 0.5, 0.6, 0.8\}$), registrando a convergência monótona, o passo crítico unitário e o overshoot oscilatório. |
+| 11/10/2026 | Engenharia, Gráficos e Testes | Implementação do módulo `gd_puro.py`, geração dos gráficos multidirecionais e heatmaps em `graficos/`, suíte `pytest` aprovada (6/6) e reflexão geométrica sobre bacias convexas e $\tanh$. |
+| 11/10/2026 | Estudo do Acoplamento $\lambda$ | Validação empírica no Jupyter com $\lambda \in \{0.0, 0.5, 20.0\}$, dedução da cota de força máxima $2 + 4\lambda$ e da chicotada divergente. |
+
+

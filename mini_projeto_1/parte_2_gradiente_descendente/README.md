@@ -1,56 +1,108 @@
-# Parte 2: Otimização com Gradiente Descendente
+# Parte 2: Otimização Contínua com Gradiente Descendente
 
-Este exercício explora a transformação de sequências de bits sob a ótica de otimização contínua, mapeando o problema discreto para um espaço contínuo e aplicando o método do Gradiente Descendente.
-
----
-
-## Enunciado
-
-### A. Descrição do Problema
-
-Problemas de otimização geralmente assumem que o espaço de soluções forma um plano contínuo por pedaços. No presente problema, sequências de bits são elementos intrinsecamente discretos e por isso exigem algum tipo de mapeamento entre o discreto e o contínuo.
-
-Uma possibilidade seria mapear as sequências em números inteiros. Contudo, esse mapeamento produz transformações que se assemelham a divergências, o que não é adequado para algoritmos de otimização.
-
-Ao invés disso, empresta-se a inspiração da lógica *fuzzy* com o mapa que transforma o $k$-ésimo bit da sequência na variável contínua:
-$$x_k \in [0, 1]$$
-
-A sequência, portanto, descreve um vetor $\mathbf{x}$. O objetivo é buscar uma sequência de mudanças contínuas que alterem os valores $x_k$, penalizando mudanças para transformações não-consecutivas.
+Este módulo implementa a transformação contínua de sequências binárias, realizando o relaxamento *fuzzy* da fita de 23 bits para o espaço euclidiano $[0, 1]^{23}$ e aplicando o método do Gradiente Descendente puro e regularizado com custo de vizinhança contígua.
 
 ---
 
-### B. Função de Erro $\mathcal{L}(\mathbf{x})$
+## 1. Ambiente Virtual (`.venv`) e Instalação
 
-A função erro é definida como:
-$$\mathcal{L}(\mathbf{x}) = \sum_{k=1}^L (x_k - y_k)^2$$
+Para executar este módulo isoladamente ou a partir da raiz:
 
-onde $\mathbf{y}$ é o vetor contínuo correspondente à sequência alvo.
+```bash
+# Na pasta parte_2_gradiente_descendente/
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
 
-**Questão teórica:**
-- Explique como a busca de sequências de transformações se relaciona com a minimização de $\mathcal{L}(\mathbf{x})$.
-
----
-
-### C. Implementação do Gradiente Descendente (Sem Custo)
-
-Implementar o algoritmo do gradiente descendente para minimizar $\mathcal{L}(\mathbf{x})$ (consulte Smola). Os vetores diferença entre passos consecutivos são as representações das transformações.
-
-**Requisitos:**
-- Retornar a sequência de transformações.
-- Atualizar $\mathbf{x}$ usando a regra:
-  $$x_i \leftarrow x_i - \eta \cdot \frac{\partial \mathcal{L}}{\partial x_i}$$
-  onde $\eta$ é o parâmetro de incremento (ou taxa de aprendizado).
-- **Análise de estabilidade:** Note que os valores de $x_k$ podem sair do intervalo de validade em determinadas situações, criando comportamentos espúrios ou oscilantes. Ilustre um caso no qual $x_k$ se torna negativo para $\eta > 1/2$.
+As dependências principais são:
+- `torch>=2.0.0` (Diferenciação automática com `autograd`)
+- `matplotlib>=3.7.0` (Visualizações científicas em 300 DPI)
+- `pytest>=7.4.0` (Suíte de testes automatizados)
+- `numpy>=1.24.0` (Computação numérica matricial)
 
 ---
 
-### D. Inclusão da Função Custo
+## 2. Comandos dos Testes Automatizados (`pytest`)
 
-Incluir a função de custo $C(\mathbf{z})$ que penaliza mudanças não consecutivas. Aqui, o vetor $\mathbf{z}$ descreve a probabilidade ou peso das transformações geradas pelo gradiente.
+A suíte possui **11 testes unitários** automatizados aprovados:
 
-1. **Modelagem de $\mathbf{z}$:** Modele $\mathbf{z}$ tal que seja uma função suave ou não do gradiente $\nabla\mathcal{L}(\mathbf{x})$.
-2. **Definição de $C(\mathbf{z})$:** Defina uma função custo que favoreça mudanças de elementos consecutivos de $\mathbf{x}$. Justifique sua resposta.
-3. **Regra da Cadeia:** Considere a função objetivo:
-   $$J(\mathbf{x}) = \mathcal{L}(\mathbf{x}) + \lambda C(\mathbf{z})$$
-   Por meio da regra da cadeia, mostre que variações em $x_i$ também recebem contribuições devido ao custo de transformações adjacentes.
-4. **Minimização:** Minimize $J(\mathbf{x})$ para diferentes valores do parâmetro $\lambda$. Discuta os resultados obtidos.
+```bash
+# Rodar todos os testes com saída detalhada
+pytest tests/ -v
+```
+
+Os testes cobrem:
+1. Comparação elemento a elemento entre o gradiente analítico ($2x$) e o `torch.autograd`.
+2. Verificação do passo crítico unitário ($\eta = 0.5$ atingindo a origem em 1 iteração).
+3. Detecção e caracterização de *overshoot* e valores negativos para $\eta = 0.6$.
+4. Dinâmica de blocos contíguos na função regularizada: comprovação de que o **interior de um bloco** ($1, 1, 1$) tem penalidade de regularização nula e gradiente efetivo $2.0$, enquanto as **bordas** sofrem força $4.0$.
+5. Detecção de divergência numérica para valores de $\eta$ acima da cota crítica de estabilidade sob altos valores de $\lambda$.
+
+---
+
+## 3. Comandos para Executar os Experimentos e Gerar Gráficos
+
+### 3.1. Execução do Gradiente Descendente Puro
+Demonstração no terminal dos diferentes regimes de taxa de aprendizado $\eta$:
+```bash
+# Executa os regimes eta in {0.1, 0.5, 0.6} na fita do enunciado
+python3 -c "
+from gd_puro import gradiente_descendente_puro
+fita = '00001001000011001100111'
+for eta in [0.1, 0.5, 0.6]:
+    res = gradiente_descendente_puro(fita, eta=eta, max_passos=30)
+    print(f'eta={eta:.1f} | Passos={res[\"passos_executados\"]:2d} | Overshoot={res[\"ocorreu_overshoot\"]} | Perda Final={res[\"perdas\"][-1]:.6f}')
+"
+```
+
+### 3.2. Execução do Gradiente Descendente Regularizado
+Demonstração do acoplamento elástico $\lambda \in \{0.0, 0.5, 20.0\}$:
+```bash
+# Compara convergência estável (lambda=0.0 e 0.5) contra a divergência numérica (lambda=20.0)
+python3 -c "
+from gd_regularizado import gradiente_descendente_regularizado
+fita = '00001001000011001100111'
+for lam in [0.0, 0.5, 20.0]:
+    res = gradiente_descendente_regularizado(fita, eta=0.1, lam=lam, max_passos=25)
+    print(f'lambda={lam:4.1f} | Convergiu={res[\"convergiu\"]} | Divergiu={res[\"divergiu\"]} | Passos={res[\"passos_executados\"]}')
+"
+```
+
+### 3.3. Gerar Todas as Figuras Científicas (Pasta `graficos/`)
+```bash
+# 1. Gráficos do GD Puro (Bacia 3D, curvas de nível e heatmaps)
+python3 plota_graficos_gd_puro.py
+
+# 2. Gráficos do GD Regularizado (Heatmaps comparativos, perdas e diagrama de fase eta x lambda)
+python3 plota_graficos_gd_regularizado.py
+```
+
+Os gráficos gerados em alta resolução são:
+- `graficos/01_topografia_curvas_nivel_etas_direcoes.png`
+- `graficos/02_convergencia_perda_etas.png`
+- `graficos/03_heatmaps_evolucao_temporal_23bits.png`
+- `graficos/04_heatmaps_comparativo_lambdas_23bits.png`
+- `graficos/05_decomposicao_perdas_regularizacao.png`
+- `graficos/06_diagrama_fase_estabilidade_eta_lambda.png`
+
+---
+
+## 4. Estrutura de Arquivos
+
+```text
+parte_2_gradiente_descendente/
+├── README.md                      # Este guia
+├── METODOLOGIA.md                 # Registro cognitivo de engenharia e decisões
+├── requirements.txt               # Dependências Python
+├── pytest.ini                     # Configuração do pytest
+├── gd_puro.py                     # Implementação do GD sem regularização
+├── gd_regularizado.py             # Implementação do GD com custo de vizinhança
+├── plota_graficos_gd_puro.py      # Script de visualização do GD puro
+├── plota_graficos_gd_regularizado.py # Script de visualização do GD regularizado
+├── graficos/                      # Figuras científicas salvas (300 DPI)
+└── tests/                         # Suíte de testes automatizados
+    ├── test_gd_puro.py
+    └── test_gd_regularizado.py
+```
