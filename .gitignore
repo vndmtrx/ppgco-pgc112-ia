@@ -3,6 +3,16 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.bk
+
 # C extensions
 *.so
 
