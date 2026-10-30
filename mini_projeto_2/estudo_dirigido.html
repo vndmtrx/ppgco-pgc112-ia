@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Estudo Dirigido para Compreensão do Modelo Neural</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card-bg: #1e293b;
+      --border-color: #334155;
+      --text-main: #f8fafc;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    /* Cores Canônicas por Canal / Entrada */
+    .c-bias  { color: #ec4899; }
+    .bg-bias { background-color: #ec4899; }
+    .border-bias { border-color: #ec4899; }
+
+    .c-p1  { color: #38bdf8; }
+    .bg-p1 { background-color: #38bdf8; }
+    .border-p1 { border-color: #38bdf8; }
+
+    .c-p2  { color: #10b981; }
+    .bg-p2 { background-color: #10b981; }
+    .border-p2 { border-color: #10b981; }
+
+    .c-p3  { color: #f59e0b; }
+    .bg-p3 { background-color: #f59e0b; }
+    .border-p3 { border-color: #f59e0b; }
+
+    .c-p4  { color: #a855f7; }
+    .bg-p4 { background-color: #a855f7; }
+    .border-p4 { border-color: #a855f7; }
+
+    .c-h1  { color: #818cf8; }
+    .bg-h1 { background-color: #818cf8; }
+    .border-h1 { border-color: #818cf8; }
+
+    .c-h2  { color: #fbbf24; }
+    .bg-h2 { background-color: #fbbf24; }
+    .border-h2 { border-color: #fbbf24; }
+
+    /* ESTILO DE MATRIZ LATEX COM COLCHETES SÓLIDOS [ ... ] */
+    .latex-mat {
+      display: inline-flex;
+      align-items: center;
+      position: relative;
+      padding: 6px 10px;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .latex-mat::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      border-left: 2.5px solid #94a3b8;
+      border-top: 2.5px solid #94a3b8;
+      border-bottom: 2.5px solid #94a3b8;
+      border-top-left-radius: 4px;
+      border-bottom-left-radius: 4px;
+    }
+    .latex-mat::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      border-right: 2.5px solid #94a3b8;
+      border-top: 2.5px solid #94a3b8;
+      border-bottom: 2.5px solid #94a3b8;
+      border-top-right-radius: 4px;
+      border-bottom-right-radius: 4px;
+    }
+
+    /* Brackets destacados quando ativos */
+    .latex-mat-active::before, .latex-mat-active::after {
+      border-color: #38bdf8 !important;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+    }
+    .latex-mat-error::before, .latex-mat-error::after {
+      border-color: #f43f5e !important;
+      box-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
+    }
+
+    /* Animações de Pulsos Elétricos nos Fios */
+    @keyframes pulseGlow {
+      0%, 100% { filter: drop-shadow(0 0 4px #38bdf8); }
+      50% { filter: drop-shadow(0 0 14px #38bdf8); }
+    }
+    .pulse-data {
+      animation: pulseGlow 1.2s infinite ease-in-out;
+    }
+
+    @keyframes backpropGlow {
+      0%, 100% { filter: drop-shadow(0 0 4px #f43f5e); }
+      50% { filter: drop-shadow(0 0 14px #f43f5e); }
+    }
+    .pulse-error {
+      animation: backpropGlow 1.0s infinite ease-in-out;
+    }
+
+    input[type=range] {
+      accent-color: #38bdf8;
+    }
+  </style>
+</head>
+<body class="p-3 md:p-6 min-h-screen">
+  <div class="max-w-6xl mx-auto space-y-5">
+
+    <!-- Topo / Header -->
+    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800 pb-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
+            Estudo Dirigido Preliminar
+          </span>
+          <span class="text-xs text-slate-500">PPGCO / UFU — Inteligência Artificial (Mini-Projeto 2)</span>
+        </div>
+        <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white mt-1">
+          Estudo Dirigido para Compreensão do Modelo Neural
+        </h1>
+        <p class="text-slate-400 text-xs md:text-sm mt-0.5">
+          Fundamentação teórica da álgebra linear, fluxo de dados no forward pass e dinâmica do gradiente (backpropagation) pré-implementação.
+        </p>
+      </div>
+
+      <!-- Abas dos 3 Modos de Estudo -->
+      <div class="inline-flex rounded-lg bg-slate-900 p-1 border border-slate-700 flex-wrap">
+        <button id="tab-0" onclick="setMode(0)" class="px-3 py-1.5 text-xs font-bold rounded-md transition-all bg-blue-600 text-white shadow">
+          1. O Perceptron Simples (Vetor & Bias)
+        </button>
+        <button id="tab-1" onclick="setMode(1)" class="px-3 py-1.5 text-xs font-bold rounded-md transition-all text-slate-400 hover:text-white">
+          2. Redes Multicamadas (Álgebra Matricial)
+        </button>
+        <button id="tab-2" onclick="setMode(2)" class="px-3 py-1.5 text-xs font-bold rounded-md transition-all text-slate-400 hover:text-white">
+          3. Estudo de Caso 2×2 (Dying ReLU & SGD)
+        </button>
+      </div>
+    </header>
+
+    <!-- Barra de Controle Unificada (Stepper & Play) -->
+    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Fase Atual:</span>
+        <span id="step-badge" class="px-3 py-1 rounded-full text-xs font-extrabold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+          Passo 0: Pronto
+        </span>
+      </div>
+
+      <!-- Bolinhas Indicadoras de Passo -->
+      <div id="step-dots" class="flex items-center gap-1.5"></div>
+
+      <!-- Botões de Controle -->
+      <div class="flex items-center gap-2">
+        <button id="btn-prev" onclick="prevStep()" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition disabled:opacity-30 disabled:cursor-not-allowed">
+          ◀ Anterior
+        </button>
+        <button id="btn-next" onclick="nextStep()" class="px-4 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white shadow transition disabled:opacity-30 disabled:cursor-not-allowed">
+          Avançar ▶
+        </button>
+        <button id="btn-play" onclick="togglePlay()" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow transition flex items-center gap-1">
+          <span id="play-icon">▶ Auto</span>
+        </button>
+        <button onclick="resetSim()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-400 hover:text-white transition" title="Reiniciar">
+          ↺
+        </button>
+      </div>
+    </div>
+
+    <!-- Explicação Narrativa da Fase Atual -->
+    <div id="narrative-card" class="bg-slate-800/40 border border-slate-700/60 rounded-xl p-4 space-y-1">
+      <h2 id="phase-title" class="text-sm md:text-base font-bold text-blue-300 flex items-center gap-2"></h2>
+      <p id="phase-desc" class="text-xs md:text-sm text-slate-300 leading-relaxed"></p>
+    </div>
+
+    <!-- PALCO DINÂMICO PRINCIPAL (Renderizado via JS) -->
+    <main id="stage" class="space-y-5"></main>
+
+    <!-- Rodapé -->
+    <footer class="text-center text-xs text-slate-500 pt-4 border-t border-slate-800">
+      Estudo Dirigido para Compreensão do Modelo Neural — Mini-Projeto 2 (PPGCO/UFU) — Documentado em <code>METODOLOGIA.md</code>.
+    </footer>
+  </div>
+
+  <script>
+    // =========================================================================
+    // ESTADO GLOBAL DO SIMULADOR
+    // =========================================================================
+    let mode = 0;       // 0: Perceptron, 1: Multi-Perceptron, 2: Detector 2x2
+    let step = 0;       // 0 a 6
+    let isPlaying = false;
+    let playTimer = null;
+
+    // MODELO 0: PERCEPTRON INDIVIDUAL
+    let pModel = {
+      x0: 1.0,  // bias dummy
+      x1: 2.0,  // pixel 1
+      x2: 1.0,  // pixel 2
+      w0: -1.5, // peso do bias
+      w1: 1.0,  // peso da perninha 1
+      w2: 0.5,  // peso da perninha 2
+      target: 2.0,
+      lr: 0.1,
+      activation: "relu"
+    };
+
+    // MODELO 1: MULTI-PERCEPTRON (2 CAMADAS)
+    let mModel = {
+      x1: 2.0,
+      x2: 1.0,
+      // Camada 1 (W1: 2x2, b1: 2x1)
+      w1A: 1.0, w2A: 2.0, bA: 0.0, // Linha 1 -> Neurônio A
+      w1B: 3.0, w2B: 0.0, bB: 0.0, // Linha 2 -> Neurônio B
+      // Camada 2 (W2: 1x2, bOut: 1x1)
+      wOutA: 2.0, wOutB: 1.0, bOut: 0.0,
+      target: 10.0,
+      lr: 0.01
+    };
+
+    // MODELO 2: DETECTOR DE IMAGEM 2x2 (Configuração do experimento no Jupyter!)
+    let dModel = {
+      preset: "diag_principal", // 'diag_principal', 'horiz', 'preta', 'diag_sec'
+      p1: 1, p2: 0, p3: 0, p4: 1,
+      // Pesos convergidos no Jupyter ou default
+      w1: 0.315,
+      w2: -0.320,
+      w3: 0.038,
+      w4: 0.674,
+      b: 0.006,
+      target: 1.0,
+      lr: 0.1
+    };
+
+    // ROTEIROS DIDÁTICOS DE CADA MODO
+    const scripts = {
+      0: [
+        {
+          title: "Passo 0: Configuração Inicial e Vetores em Repouso",
+          desc: "As entradas [x₀, x₁, x₂] estão posicionadas nos dendritos. Ao lado, veja a representação formal em vetor linha wᵀ e vetor coluna x no estilo LaTeX.",
+          badge: "0/6: Repouso"
+        },
+        {
+          title: "Passo 1: Pulsos Sinápticos via Multiplicação Par a Par (wᵢ · xᵢ)",
+          desc: "Cada entrada dispara um pulso elétrico pela sua respectiva perninha. Na matriz, cada elemento de w multiplica o elemento correspondente de x.",
+          badge: "1/6: Impulso"
+        },
+        {
+          title: "Passo 2: Soma de Redução (Σ) no Núcleo do Neurônio",
+          desc: "Todas as perninhas confluem para o centro do neurônio. Ocorre a redução afim: z = (w₀·x₀) + (w₁·x₁) + (w₂·x₂). Três números viram um único escalar!",
+          badge: "2/6: Soma Σ"
+        },
+        {
+          title: "Passo 3: Gatilho do Axônio (Função de Ativação ReLU)",
+          desc: "O valor afim z chega à comporta da ReLU. Se z > 0, o sinal passa desimpedido; se z ≤ 0, a comporta se fecha e o sinal é zerado (bloqueio).",
+          badge: "3/6: Ativação"
+        },
+        {
+          title: "Passo 4: Confronto com o Alvo & A Mola Elástica (Loss)",
+          desc: "A predição confronta o alvo desejado. A deformação da mola é o Erro δ = (a - y). A energia potencial Loss = ½δ² fica retida na ponta do axônio.",
+          badge: "4/6: Mola / Erro"
+        },
+        {
+          title: "Passo 5: Onda de Retorno do Backpropagation (A Culpa Volta!)",
+          desc: "A tensão mecânica do erro viaja em sentido contrário pelas perninhas. Cada peso recebe o gradiente ∇wᵢ = δ · xᵢ, preparando o alívio da mola.",
+          badge: "5/6: Backprop"
+        },
+        {
+          title: "Passo 6: Atualização SGD dos Pesos (A Mola Relaxa)",
+          desc: "Pela Lei de Hooke e Gradiente Descendente: w_novo = w - η · ∇w. Os valores na matriz e nas conexões são atualizados para minimizar o erro!",
+          badge: "6/6: Aprendizado"
+        }
+      ],
+      1: [
+        {
+          title: "Passo 0: Multi-Perceptron — Duas Camadas Matriciais Prontas",
+          desc: "Temos 2 entradas [x₁, x₂], uma Camada Oculta com 2 neurônios (A e B) formando a matriz W₁ (2×2), e uma Camada de Saída formando W₂ (1×2).",
+          badge: "0/6: Inicial"
+        },
+        {
+          title: "Passo 1: Propagação para a Camada Oculta (W₁ × x)",
+          desc: "Os sinais x disparam para os dois neurônios simultaneamente. Veja as linhas da matriz W₁ operando: Linha 1 para o Neurônio A, Linha 2 para o Neurônio B.",
+          badge: "1/6: Ida Camada 1"
+        },
+        {
+          title: "Passo 2: Somas de Redução dos Neurônios A e B",
+          desc: "Os núcleos da camada oculta calculam seus valores afins: z_A = w₁A·x₁ + w₂A·x₂ e z_B = w₁B·x₁ + w₂B·x₂. O vetor z₁ = [z_A, z_B] é gerado.",
+          badge: "2/6: Somas Ocultas"
+        },
+        {
+          title: "Passo 3: Ativações Ocultas e Ida para a Saída (W₂ × a₁)",
+          desc: "Os neurônios A e B aplicam ReLU e disparam seus axônios a₁ = [a_A, a_B] em direção ao neurônio de saída através do vetor W₂.",
+          badge: "3/6: Ida Camada 2"
+        },
+        {
+          title: "Passo 4: Predição Final e Tensão da Mola na Saída",
+          desc: "O neurônio de saída calcula y_pred = W₂ · a₁ + b_out e colide com o alvo real. A deformação da mola na saída é δ_out = (y_pred - alvo).",
+          badge: "4/6: Erro Saída"
+        },
+        {
+          title: "Passo 5: Backprop via Matriz Transposta (W₂ᵀ × δ_out)",
+          desc: "A MÁGICA DA FÍSICA: O erro da saída viaja de volta multiplicado pela matriz transposta W₂ᵀ! A culpa se reparte matematicamente entre os neurônios A e B.",
+          badge: "5/6: Volta Transposta"
+        },
+        {
+          title: "Passo 6: Ajuste de Todas as Matrizes (W₁ e W₂ Atualizadas)",
+          desc: "Cada elemento das matrizes W₁ e W₂ é corrigido pelo seu gradiente. Toda a treliça elástica se acomoda em um estado de menor energia de erro!",
+          badge: "6/6: Treliça Calibrada"
+        }
+      ],
+      2: [
+        {
+          title: "Passo 0: Grid 2×2 Achatado em Vetor Coluna (Flatten)",
+          desc: "A imagem 2×2 com 4 pixels é lida e desenrolada em um vetor 1D: x = [p₁, p₂, p₃, p₄]ᵀ. A matriz de pesos W (1×4) e o bias b aguardam o sinal.",
+          badge: "0/6: Flatten"
+        },
+        {
+          title: "Passo 1: Os 4 Pixels Disparam pelos Fios Sinápticos",
+          desc: "Pulsos elétricos partem dos 4 pixels pelas perninhas. Cada pixel é multiplicado pelo seu peso sináptico: p₁·w₁, p₂·w₂, p₃·w₃ e p₄·w₄.",
+          badge: "1/6: Impulsos"
+        },
+        {
+          title: "Passo 2: Soma Ponderada no Núcleo do Detector (z = W·x + b)",
+          desc: "O neurônio soma todas as contribuições dos pixels mais o bias b. Repare: na horizontal, o peso inibitório w₂ negativo cancela o pixel w₁ positivo!",
+          badge: "2/6: Soma Afim"
+        },
+        {
+          title: "Passo 3: A Comporta da ReLU (O Teste do Dying ReLU)",
+          desc: "Se z > 0, o detector dispara! Se z ≤ 0 (como quando o bias era -0.5 e os pesos eram pequenos), o neurônio bate na parede do zero e adormece.",
+          badge: "3/6: Teste ReLU"
+        },
+        {
+          title: "Passo 4: Medição da Perda (Detector vs Gabarito)",
+          desc: "Se a imagem for a Diagonal Principal, o gabarito é 1.0 (detecção esperada). Se for horizontal, preta ou outra, o gabarito é 0.0.",
+          badge: "4/6: Alvo vs Predição"
+        },
+        {
+          title: "Passo 5: Onda de Backprop nos 4 Pesos (∇w = δ · xᵀ)",
+          desc: "O erro δ volta pelos 4 fios sinápticos. Cada peso recebe o gradiente correspondente ao seu pixel: se o pixel estava aceso (1.0), o peso sente o puxão!",
+          badge: "5/6: Gradientes dos Pesos"
+        },
+        {
+          title: "Passo 6: Atualização SGD dos 4 Pesos e do Bias",
+          desc: "Os pesos W e o bias b são atualizados. Observe como o peso w₂ fica inibitório para agir como extintor de retas horizontais!",
+          badge: "6/6: Pesos Especializados"
+        }
+      ]
+    };
+
+    // =========================================================================
+    // NAVEGAÇÃO E CONTROLES
+    // =========================================================================
+    function setMode(m) {
+      mode = m;
+      step = 0;
+      stopPlay();
+
+      for (let i = 0; i <= 2; i++) {
+        const tab = document.getElementById(`tab-${i}`);
+        if (i === m) {
+          tab.className = "px-3 py-1.5 text-xs font-bold rounded-md transition-all bg-blue-600 text-white shadow";
+        } else {
+          tab.className = "px-3 py-1.5 text-xs font-bold rounded-md transition-all text-slate-400 hover:text-white";
+        }
+      }
+      render();
+    }
+
+    function prevStep() {
+      if (step > 0) {
+        step--;
+        render();
+      }
+    }
+
+    function nextStep() {
+      if (step < 6) {
+        step++;
+        render();
+      } else {
+        stopPlay();
+      }
+    }
+
+    function goToStep(s) {
+      step = s;
+      render();
+    }
+
+    function resetSim() {
+      step = 0;
+      stopPlay();
+      render();
+    }
+
+    function togglePlay() {
+      if (isPlaying) {
+        stopPlay();
+      } else {
+        isPlaying = true;
+        document.getElementById("play-icon").innerText = "⏸ Pausar";
+        document.getElementById("btn-play").className = "px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-bold text-white shadow transition flex items-center gap-1";
+        
+        playTimer = setInterval(() => {
+          if (step < 6) {
+            step++;
+            render();
+          } else {
+            step = 0;
+            render();
+          }
+        }, 1900);
+      }
+    }
+
+    function stopPlay() {
+      isPlaying = false;
+      if (playTimer) clearInterval(playTimer);
+      const icon = document.getElementById("play-icon");
+      if (icon) icon.innerText = "▶ Auto";
+      const btn = document.getElementById("btn-play");
+      if (btn) btn.className = "px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow transition flex items-center gap-1";
+    }
+
+    // =========================================================================
+    // DISPATCHER PRINCIPAL
+    // =========================================================================
+    function render() {
+      const currentScript = scripts[mode][step];
+      document.getElementById("step-badge").innerText = currentScript.badge;
+      document.getElementById("phase-title").innerHTML = `<span>${currentScript.title}</span>`;
+      document.getElementById("phase-desc").innerText = currentScript.desc;
+
+      document.getElementById("btn-prev").disabled = (step === 0);
+      document.getElementById("btn-next").disabled = (step === 6);
+
+      const dotsContainer = document.getElementById("step-dots");
+      dotsContainer.innerHTML = scripts[mode].map((_, i) => `
+        <button onclick="goToStep(${i})" title="Passo ${i}" class="w-2.5 h-2.5 rounded-full transition-all ${
+          i === step ? 'bg-blue-400 scale-125 ring-2 ring-blue-300/40' : (i < step ? 'bg-blue-600' : 'bg-slate-700')
+        }"></button>
+      `).join("");
+
+      const stage = document.getElementById("stage");
+      if (mode === 0) stage.innerHTML = renderMode0();
+      else if (mode === 1) stage.innerHTML = renderMode1();
+      else stage.innerHTML = renderMode2();
+    }
+
+    // =========================================================================
+    // MODO 0: PERCEPTRON INDIVIDUAL (DIAGRAMA SVG + MATRIZ LATEX)
+    // =========================================================================
+    function renderMode0() {
+      const p0 = pModel.w0 * pModel.x0;
+      const p1 = pModel.w1 * pModel.x1;
+      const p2 = pModel.w2 * pModel.x2;
+      const z = p0 + p1 + p2;
+
+      let a = 0;
+      if (pModel.activation === "relu") a = Math.max(0, z);
+      else if (pModel.activation === "degrau") a = (z >= 0 ? 1 : 0);
+      else a = z;
+
+      const delta = (a - pModel.target);
+      const loss = 0.5 * (delta * delta);
+
+      // Gradientes
+      const grad0 = delta * pModel.x0;
+      const grad1 = delta * pModel.x1;
+      const grad2 = delta * pModel.x2;
+
+      // Pesos atualizados no step 6
+      const new_w0 = pModel.w0 - pModel.lr * grad0;
+      const new_w1 = pModel.w1 - pModel.lr * grad1;
+      const new_w2 = pModel.w2 - pModel.lr * grad2;
+
+      const isTraveling = (step === 1);
+      const isSumming = (step >= 2);
+      const isFired = (step >= 3 && a > 0);
+      const isCompared = (step >= 4);
+      const isBackprop = (step === 5);
+      const isUpdated = (step === 6);
+
+      return `
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          
+          <!-- DIAGRAMA SVG DO PERCEPTRON (ESQUERDA) -->
+          <div class="lg:col-span-6 bg-slate-900 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between shadow-2xl">
+            <div class="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2 mb-2 font-mono">
+              <span class="text-pink-400 font-bold">Dendritos (Entradas)</span>
+              <span class="text-blue-400 font-bold">Núcleo (Σ & Ativação)</span>
+              <span class="${isCompared ? 'text-rose-400' : 'text-emerald-400'} font-bold">
+                ${isCompared ? 'Mola (Loss)' : 'Axônio (Saída)'}
+              </span>
+            </div>
+
+            <svg viewBox="0 0 520 280" class="w-full h-auto select-none">
+              <defs>
+                <filter id="glow-p-cyan" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="5" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+                <filter id="glow-p-rose" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="6" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+
+              <!-- Perninhas Sinápticas -->
+              <!-- Bias w0 -->
+              <path d="M 80 50 Q 160 50, 220 120" fill="none"
+                    stroke="${isBackprop ? '#f43f5e' : '#ec4899'}"
+                    stroke-width="${Math.max(2, Math.abs(pModel.w0) * 2.2)}"
+                    stroke-dasharray="${isBackprop ? '6 4' : 'none'}" />
+              <!-- x1 w1 -->
+              <path d="M 80 140 L 220 140" fill="none"
+                    stroke="${isBackprop ? '#f43f5e' : '#38bdf8'}"
+                    stroke-width="${Math.max(2, Math.abs(pModel.w1) * 2.2)}"
+                    stroke-dasharray="${isBackprop ? '6 4' : 'none'}" />
+              <!-- x2 w2 -->
+              <path d="M 80 230 Q 160 230, 220 160" fill="none"
+                    stroke="${isBackprop ? '#f43f5e' : '#10b981'}"
+                    stroke-width="${Math.max(2, Math.abs(pModel.w2) * 2.2)}"
+                    stroke-dasharray="${isBackprop ? '6 4' : 'none'}" />
+
+              <!-- Axônio de Saída -->
+              <path d="M 320 140 L 410 140" fill="none"
+                    stroke="${isBackprop ? '#f43f5e' : (isFired ? '#38bdf8' : '#475569')}"
+                    stroke-width="${isFired || isBackprop ? '5' : '2.5'}"
+                    filter="${isBackprop ? 'url(#glow-p-rose)' : (isFired ? 'url(#glow-p-cyan)' : 'none')}" />
+
+              <!-- Mola com o Alvo -->
+              <path d="M 445 140 L 475 140" fill="none"
+                    stroke="${isCompared ? '#f43f5e' : '#334155'}"
+                    stroke-width="3" stroke-dasharray="3 3" />
+
+              <!-- Pulsos de Ida (Passo 1) -->
+              ${isTraveling ? `
+                <circle cx="140" cy="75" r="7" fill="#ec4899" class="pulse-data" />
+                <circle cx="140" cy="140" r="7" fill="#38bdf8" class="pulse-data" />
+                <circle cx="140" cy="205" r="7" fill="#10b981" class="pulse-data" />
+              ` : ''}
+
+              <!-- Pulsos de Volta (Passo 5) -->
+              ${isBackprop ? `
+                <circle cx="365" cy="140" r="8" fill="#f43f5e" class="pulse-error" />
+                <circle cx="160" cy="85" r="7" fill="#f43f5e" class="pulse-error" />
+                <circle cx="160" cy="140" r="7" fill="#f43f5e" class="pulse-error" />
+                <circle cx="160" cy="195" r="7" fill="#f43f5e" class="pulse-error" />
+              ` : ''}
+
+              <!-- Nós de Entrada -->
+              <!-- Bias x0 -->
+              <g transform="translate(55, 50)">
+                <circle r="22" fill="#831843" stroke="#ec4899" stroke-width="2.5" />
+                <text text-anchor="middle" dy="-2" font-size="9" fill="#fbcfe8" font-weight="bold">Bias x₀</text>
+                <text text-anchor="middle" dy="12" font-size="12" fill="#ffffff" font-weight="extrabold">+1.0</text>
+              </g>
+              <g transform="translate(145, 60)">
+                <rect x="-26" y="-12" width="52" height="22" rx="4" fill="#0f172a"
+                      stroke="${isUpdated ? '#10b981' : '#ec4899'}" stroke-width="2" />
+                <text text-anchor="middle" dy="3" font-size="11" fill="${isUpdated ? '#34d399' : '#f472b6'}" font-family="monospace" font-weight="bold">
+                  w₀:${isUpdated ? new_w0.toFixed(2) : pModel.w0.toFixed(1)}
+                </text>
+              </g>
+
+              <!-- x1 -->
+              <g transform="translate(55, 140)">
+                <circle r="22" fill="#0369a1" stroke="#38bdf8" stroke-width="2.5" />
+                <text text-anchor="middle" dy="-2" font-size="9" fill="#e0f2fe" font-weight="bold">x₁</text>
+                <text text-anchor="middle" dy="12" font-size="12" fill="#ffffff" font-weight="extrabold">${pModel.x1.toFixed(1)}</text>
+              </g>
+              <g transform="translate(145, 128)">
+                <rect x="-26" y="-12" width="52" height="22" rx="4" fill="#0f172a"
+                      stroke="${isUpdated ? '#10b981' : '#38bdf8'}" stroke-width="2" />
+                <text text-anchor="middle" dy="3" font-size="11" fill="${isUpdated ? '#34d399' : '#38bdf8'}" font-family="monospace" font-weight="bold">
+                  w₁:${isUpdated ? new_w1.toFixed(2) : pModel.w1.toFixed(1)}
+                </text>
+              </g>
+
+              <!-- x2 -->
+              <g transform="translate(55, 230)">
+                <circle r="22" fill="#065f46" stroke="#10b981" stroke-width="2.5" />
+                <text text-anchor="middle" dy="-2" font-size="9" fill="#d1fae5" font-weight="bold">x₂</text>
+                <text text-anchor="middle" dy="12" font-size="12" fill="#ffffff" font-weight="extrabold">${pModel.x2.toFixed(1)}</text>
+              </g>
+              <g transform="translate(145, 212)">
+                <rect x="-26" y="-12" width="52" height="22" rx="4" fill="#0f172a"
+                      stroke="${isUpdated ? '#10b981' : '#10b981'}" stroke-width="2" />
+                <text text-anchor="middle" dy="3" font-size="11" fill="${isUpdated ? '#34d399' : '#34d399'}" font-family="monospace" font-weight="bold">
+                  w₂:${isUpdated ? new_w2.toFixed(2) : pModel.w2.toFixed(1)}
+                </text>
+              </g>
+
+              <!-- Núcleo Celular (Σ e ReLU) -->
+              <g transform="translate(270, 140)">
+                ${isFired ? '<circle r="52" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.6" filter="url(#glow-p-cyan)" />' : ''}
+                <circle r="46" fill="#1e293b" stroke="${isFired ? '#38bdf8' : (isSumming ? '#94a3b8' : '#475569')}" stroke-width="3" />
+                <line x1="0" y1="-46" x2="0" y2="46" stroke="#334155" stroke-width="2" stroke-dasharray="3 3" />
+
+                <!-- Σ -->
+                <text text-anchor="middle" x="-22" y="-12" font-size="16" fill="#94a3b8" font-weight="bold">Σ</text>
+                <text text-anchor="middle" x="-22" y="5" font-size="9" fill="#64748b">soma afim</text>
+                <text text-anchor="middle" x="-22" y="22" font-size="12" fill="${isSumming ? (z >= 0 ? '#38bdf8' : '#f87171') : '#475569'}" font-family="monospace" font-weight="extrabold">
+                  ${isSumming ? z.toFixed(2) : '?'}
+                </text>
+
+                <!-- ReLU -->
+                <text text-anchor="middle" x="22" y="-12" font-size="11" fill="#a855f7" font-weight="bold">ReLU</text>
+                <text text-anchor="middle" x="22" y="5" font-size="9" fill="#64748b">gatilho</text>
+                <text text-anchor="middle" x="22" y="22" font-size="12" fill="${step >= 3 ? (a > 0 ? '#4ade80' : '#f87171') : '#475569'}" font-family="monospace" font-weight="extrabold">
+                  ${step >= 3 ? a.toFixed(2) : '?'}
+                </text>
+              </g>
+
+              <!-- Axônio Saída -->
+              <g transform="translate(425, 140)">
+                <circle r="20" fill="${step >= 3 && isFired ? '#0284c7' : '#1e293b'}"
+                        stroke="${step >= 3 && isFired ? '#38bdf8' : '#475569'}" stroke-width="2.5" />
+                <text text-anchor="middle" dy="-2" font-size="8" fill="#e2e8f0" font-weight="bold">Saída a</text>
+                <text text-anchor="middle" dy="11" font-size="12" fill="#ffffff" font-weight="extrabold">
+                  ${step >= 3 ? a.toFixed(2) : '?'}
+                </text>
+              </g>
+
+              <!-- Alvo Real -->
+              <g transform="translate(490, 140)">
+                <circle r="18" fill="#064e3b" stroke="#10b981" stroke-width="2" />
+                <text text-anchor="middle" dy="-2" font-size="8" fill="#a7f3d0" font-weight="bold">Alvo y</text>
+                <text text-anchor="middle" dy="10" font-size="11" fill="#ffffff" font-weight="extrabold">${pModel.target.toFixed(1)}</text>
+              </g>
+            </svg>
+
+            <!-- Status do Neurônio -->
+            <div class="mt-2 p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between text-xs font-mono">
+              <span class="text-slate-400">Estado Celular:</span>
+              <span class="${isFired ? 'text-emerald-400 font-bold' : (step >= 3 ? 'text-rose-400 font-bold' : 'text-slate-500')}">
+                ${step < 3 ? 'Aguardando estimulação...' : (isFired ? '⚡ Neurônio DISPAROU (Ativo)' : '🛑 Inativo / Bloqueado na ReLU')}
+              </span>
+            </div>
+          </div>
+
+          <!-- NOTAÇÃO MATRICIAL LATEX PAREADA (DIREITA) -->
+          <div class="lg:col-span-6 space-y-4">
+            
+            <!-- CARD 1: AS MATRIZES COM COLCHETES [ ... ] -->
+            <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-4 space-y-3 shadow-lg">
+              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-300">
+                  📐 Notação Matricial em LaTeX (Equação Afim)
+                </span>
+                <span class="text-xs text-blue-400 font-mono">z = wᵀ · x</span>
+              </div>
+
+              <!-- Matrizes com Colchetes LaTeX -->
+              <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 flex flex-wrap items-center justify-center gap-3 overflow-x-auto text-sm">
+                
+                <span class="text-slate-400 font-bold">z =</span>
+
+                <!-- Vetor Linha w^T -->
+                <div class="flex flex-col items-center">
+                  <span class="text-[10px] text-slate-400 mb-0.5">Vetor Linha (wᵀ)</span>
+                  <div class="latex-mat ${step === 1 ? 'latex-mat-active' : ''} bg-slate-900 gap-3">
+                    <span class="text-pink-400 font-bold ${isUpdated ? 'underline' : ''}">
+                      ${isUpdated ? new_w0.toFixed(2) : pModel.w0.toFixed(1)}
+                    </span>
+                    <span class="text-blue-400 font-bold ${isUpdated ? 'underline' : ''}">
+                      ${isUpdated ? new_w1.toFixed(2) : pModel.w1.toFixed(1)}
+                    </span>
+                    <span class="text-emerald-400 font-bold ${isUpdated ? 'underline' : ''}">
+                      ${isUpdated ? new_w2.toFixed(2) : pModel.w2.toFixed(1)}
+                    </span>
+                  </div>
+                  <div class="flex gap-4 text-[9px] text-slate-500 mt-1 font-mono">
+                    <span class="text-pink-400">w₀(bias)</span>
+                    <span class="text-blue-400">w₁</span>
+                    <span class="text-emerald-400">w₂</span>
+                  </div>
+                </div>
+
+                <span class="text-slate-400 font-bold text-lg">·</span>
+
+                <!-- Vetor Coluna x -->
+                <div class="flex flex-col items-center">
+                  <span class="text-[10px] text-slate-400 mb-0.5">Vetor Coluna (x)</span>
+                  <div class="latex-mat ${step === 1 ? 'latex-mat-active' : ''} bg-slate-900 flex-col gap-1">
+                    <span class="text-pink-300 font-bold">+1.0</span>
+                    <span class="text-blue-300 font-bold">${pModel.x1.toFixed(1)}</span>
+                    <span class="text-emerald-300 font-bold">${pModel.x2.toFixed(1)}</span>
+                  </div>
+                  <div class="text-[9px] text-slate-500 mt-1 font-mono">
+                    <span>x₀, x₁, x₂</span>
+                  </div>
+                </div>
+
+                <span class="text-slate-400 font-bold text-lg">=</span>
+
+                <!-- Resultado Escalar z -->
+                <div class="flex flex-col items-center">
+                  <span class="text-[10px] text-slate-400 mb-0.5">Escalar z</span>
+                  <div class="latex-mat ${step >= 2 ? 'latex-mat-active' : ''} bg-slate-900">
+                    <span class="${step >= 2 ? (z >= 0 ? 'text-cyan-400' : 'text-rose-400') : 'text-slate-500'} font-bold">
+                      ${step >= 2 ? z.toFixed(2) : '?'}
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Expansão Par a Par -->
+              <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-xs font-mono space-y-1">
+                <span class="text-slate-400 text-[11px] font-sans font-bold block">Multiplicação Termo a Termo:</span>
+                <div class="text-slate-300">
+                  z = (<span class="text-pink-400 font-bold">${pModel.w0.toFixed(1)} × 1.0</span>) + 
+                      (<span class="text-blue-400 font-bold">${pModel.w1.toFixed(1)} × ${pModel.x1.toFixed(1)}</span>) + 
+                      (<span class="text-emerald-400 font-bold">${pModel.w2.toFixed(1)} × ${pModel.x2.toFixed(1)}</span>)
+                </div>
+                <div class="text-slate-300">
+                  z = (<span class="text-pink-400 font-bold">${p0.toFixed(2)}</span>) + 
+                      (<span class="text-blue-400 font-bold">${p1.toFixed(2)}</span>) + 
+                      (<span class="text-emerald-400 font-bold">${p2.toFixed(2)}</span>) = 
+                      <span class="${z >= 0 ? 'text-cyan-400' : 'text-rose-400'} font-extrabold">${step >= 2 ? z.toFixed(2) : '?'}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- CARD 2: BACKPROPAGATION COM O VETOR DE GRADIENTE ∇w -->
+            <div class="bg-slate-900 border ${step >= 4 ? 'border-rose-500/40 bg-rose-950/10' : 'border-slate-800'} rounded-xl p-4 space-y-3 font-mono text-xs shadow-lg">
+              <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <span class="font-sans font-bold ${step >= 4 ? 'text-rose-400' : 'text-slate-400'}">
+                  🪝 A Deformação da Mola (Erro δ):
+                </span>
+                <span class="font-bold ${step >= 4 ? 'text-rose-300' : 'text-slate-500'}">
+                  δ = (${step >= 3 ? a.toFixed(2) : '?'} - ${pModel.target.toFixed(1)}) = ${step >= 4 ? delta.toFixed(2) : '?'}
+                </span>
+              </div>
+
+              <!-- Vetor de Gradientes LaTeX -->
+              <div>
+                <span class="text-slate-400 font-sans text-[11px] font-bold block mb-1.5">
+                  Vetor de Gradientes (∇w = δ · xᵀ) que volta no Backpropagation:
+                </span>
+                <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-center gap-3">
+                  <span class="text-rose-400 font-bold">∇w =</span>
+                  <div class="latex-mat ${step >= 5 ? 'latex-mat-error' : ''} bg-slate-900 gap-3">
+                    <span class="text-pink-400 font-bold">${step >= 5 ? grad0.toFixed(2) : '—'}</span>
+                    <span class="text-blue-400 font-bold">${step >= 5 ? grad1.toFixed(2) : '—'}</span>
+                    <span class="text-emerald-400 font-bold">${step >= 5 ? grad2.toFixed(2) : '—'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Atualização SGD -->
+              ${step === 6 ? `
+                <div class="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 font-sans text-xs">
+                  ✨ <strong>Pesos Atualizados (SGD):</strong> w_novo = w - η · ∇w<br>
+                  w₀: <strong>${new_w0.toFixed(2)}</strong> | 
+                  w₁: <strong>${new_w1.toFixed(2)}</strong> | 
+                  w₂: <strong>${new_w2.toFixed(2)}</strong>
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- CARD 3: CONTROLES INTERATIVOS -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2 text-xs font-mono">
+              <span class="text-slate-400 font-sans font-bold uppercase tracking-wider block text-[11px]">
+                🎛️ Modificar Valores de Teste:
+              </span>
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="text-blue-400 font-bold block mb-0.5">x₁: ${pModel.x1.toFixed(1)}</label>
+                  <input type="range" min="0" max="4" step="0.5" value="${pModel.x1}" 
+                         oninput="pModel.x1=parseFloat(this.value); render();" class="w-full h-1.5 bg-slate-700 rounded">
+                </div>
+                <div>
+                  <label class="text-emerald-400 font-bold block mb-0.5">x₂: ${pModel.x2.toFixed(1)}</label>
+                  <input type="range" min="0" max="4" step="0.5" value="${pModel.x2}" 
+                         oninput="pModel.x2=parseFloat(this.value); render();" class="w-full h-1.5 bg-slate-700 rounded">
+                </div>
+                <div>
+                  <label class="text-rose-400 font-bold block mb-0.5">Alvo y: ${pModel.target.toFixed(1)}</label>
+                  <input type="range" min="0" max="5" step="0.5" value="${pModel.target}" 
+                         oninput="pModel.target=parseFloat(this.value); render();" class="w-full h-1.5 bg-slate-700 rounded">
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // MODO 1: MULTI-PERCEPTRON (2 CAMADAS: SVG COMPLETO + MATRIZES LATEX)
+    // =========================================================================
+    function renderMode1() {
+      // Forward Camada 1
+      const zA = mModel.w1A * mModel.x1 + mModel.w2A * mModel.x2 + mModel.bA;
+      const zB = mModel.w1B * mModel.x1 + mModel.w2B * mModel.x2 + mModel.bB;
+      const aA = Math.max(0, zA);
+      const aB = Math.max(0, zB);
+
+      // Forward Camada 2
+      const y_pred = mModel.wOutA * aA + mModel.wOutB * aB + mModel.bOut;
+
+      // Erro e Backprop
+      const deltaOut = (y_pred - mModel.target);
+      // Culpa voltando para os neurônios ocultos via Matriz Transposta W2^T
+      const deltaA = mModel.wOutA * deltaOut;
+      const deltaB = mModel.wOutB * deltaOut;
+
+      // Gradientes das Matrizes
+      const grad_wOutA = deltaOut * aA;
+      const grad_wOutB = deltaOut * aB;
+      const grad_w1A = deltaA * mModel.x1;
+      const grad_w2A = deltaA * mModel.x2;
+      const grad_w1B = deltaB * mModel.x1;
+      const grad_w2B = deltaB * mModel.x2;
+
+      // Pesos novos no step 6
+      const new_w1A = mModel.w1A - mModel.lr * grad_w1A;
+      const new_w2A = mModel.w2A - mModel.lr * grad_w2A;
+      const new_w1B = mModel.w1B - mModel.lr * grad_w1B;
+      const new_w2B = mModel.w2B - mModel.lr * grad_w2B;
+      const new_wOutA = mModel.wOutA - mModel.lr * grad_wOutA;
+      const new_wOutB = mModel.wOutB - mModel.lr * grad_wOutB;
+
+      // Estados de Animação
+      const isPulseL1 = (step === 1);
+      const isSumL1 = (step >= 2);
+      const isPulseL2 = (step === 3);
+      const isOutput = (step >= 4);
+      const isBackpropL2 = (step === 5);
+      const isUpdated = (step === 6);
+
+      return `
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          
+          <!-- DIAGRAMA SVG DA REDE COMPLETA (ESQUERDA) -->
+          <div class="lg:col-span-6 bg-slate-900 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between shadow-2xl">
+            <div class="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2 mb-2 font-mono">
+              <span class="text-blue-400 font-bold">Entradas [x₁, x₂]</span>
+              <span class="text-indigo-400 font-bold">Camada Oculta [A, B]</span>
+              <span class="text-emerald-400 font-bold">Saída [y]</span>
+            </div>
+
+            <svg viewBox="0 0 540 300" class="w-full h-auto select-none">
+              <defs>
+                <filter id="glow-m-cyan" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="5" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+                <filter id="glow-m-rose" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="6" result="blur" />
+                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+              </defs>
+
+              <!-- LINHAS CAMADA 1: Entrada -> Oculta -->
+              <!-- x1 -> Neurônio A -->
+              <path d="M 65 95 L 230 75" fill="none"
+                    stroke="${isBackpropL2 ? '#f43f5e' : '#818cf8'}" stroke-width="${Math.max(1.5, mModel.w1A * 2)}" 
+                    stroke-dasharray="${isBackpropL2 ? '5 3' : 'none'}" />
+              <!-- x1 -> Neurônio B -->
+              <path d="M 65 95 L 230 225" fill="none"
+                    stroke="${isBackpropL2 ? '#f43f5e' : '#fbbf24'}" stroke-width="${Math.max(1.5, mModel.w1B * 2)}" 
+                    stroke-dasharray="${isBackpropL2 ? '5 3' : 'none'}" />
+              <!-- x2 -> Neurônio A -->
+              <path d="M 65 205 L 230 75" fill="none"
+                    stroke="${isBackpropL2 ? '#f43f5e' : '#818cf8'}" stroke-width="${Math.max(1.5, mModel.w2A * 2)}" 
+                    stroke-dasharray="${isBackpropL2 ? '5 3' : 'none'}" />
+              <!-- x2 -> Neurônio B -->
+              <path d="M 65 205 L 230 225" fill="none"
+                    stroke="${isBackpropL2 ? '#f43f5e' : '#fbbf24'}" stroke-width="1.5" 
+                    stroke-dasharray="${isBackpropL2 ? '5 3' : 'none'}" />
+
+              <!-- LINHAS CAMADA 2: Oculta -> Saída -->
+              <!-- Neurônio A -> Saída -->
+              <path d="M 280 75 L 420 150" fill="none"
+                    stroke="${isBackpropL2 ? '#f43f5e' : '#10b981'}" stroke-width="${Math.max(2, mModel.wOutA * 2.5)}" 
+                    stroke-dasharray="${isBackpropL2 ? '6 4' : 'none'}" />
+              <!-- Neurônio B -> Saída -->
+              <path d="M 280 225 L 420 150" fill="none"
+                    stroke="${isBackpropL2 ? '#f43f5e' : '#10b981'}" stroke-width="${Math.max(2, mModel.wOutB * 2.5)}" 
+                    stroke-dasharray="${isBackpropL2 ? '6 4' : 'none'}" />
+
+              <!-- Conexão Saída -> Alvo (Mola) -->
+              <path d="M 455 150 L 490 150" fill="none"
+                    stroke="${isOutput ? '#f43f5e' : '#334155'}" stroke-width="3" stroke-dasharray="3 3" />
+
+              <!-- PULSOS DE DADOS: PASSO 1 (Entrada -> Oculta) -->
+              ${isPulseL1 ? `
+                <circle cx="150" cy="85" r="7" fill="#818cf8" class="pulse-data" />
+                <circle cx="150" cy="160" r="7" fill="#fbbf24" class="pulse-data" />
+                <circle cx="150" cy="140" r="7" fill="#818cf8" class="pulse-data" />
+                <circle cx="150" cy="215" r="7" fill="#fbbf24" class="pulse-data" />
+              ` : ''}
+
+              <!-- PULSOS DE DADOS: PASSO 3 (Oculta -> Saída) -->
+              ${isPulseL2 ? `
+                <circle cx="350" cy="112" r="7" fill="#10b981" class="pulse-data" />
+                <circle cx="350" cy="188" r="7" fill="#10b981" class="pulse-data" />
+              ` : ''}
+
+              <!-- ONDAS DE BACKPROP: PASSO 5 (Saída -> Oculta via W2^T) -->
+              ${isBackpropL2 ? `
+                <circle cx="350" cy="112" r="8" fill="#f43f5e" class="pulse-error" />
+                <circle cx="350" cy="188" r="8" fill="#f43f5e" class="pulse-error" />
+                <circle cx="150" cy="85" r="7" fill="#f43f5e" class="pulse-error" />
+                <circle cx="150" cy="160" r="7" fill="#f43f5e" class="pulse-error" />
+              ` : ''}
+
+              <!-- NÓS DE ENTRADA -->
+              <g transform="translate(45, 95)">
+                <circle r="20" fill="#0369a1" stroke="#38bdf8" stroke-width="2" />
+                <text text-anchor="middle" dy="-2" font-size="8" fill="#bae6fd" font-weight="bold">x₁</text>
+                <text text-anchor="middle" dy="10" font-size="11" fill="#ffffff" font-weight="extrabold">${mModel.x1.toFixed(1)}</text>
+              </g>
+              <g transform="translate(45, 205)">
+                <circle r="20" fill="#065f46" stroke="#10b981" stroke-width="2" />
+                <text text-anchor="middle" dy="-2" font-size="8" fill="#a7f3d0" font-weight="bold">x₂</text>
+                <text text-anchor="middle" dy="10" font-size="11" fill="#ffffff" font-weight="extrabold">${mModel.x2.toFixed(1)}</text>
+              </g>
+
+              <!-- NEURÔNIO A (Linha 1 de W1) -->
+              <g transform="translate(255, 75)">
+                <circle r="28" fill="#1e1b4b" stroke="#818cf8" stroke-width="${isSumL1 ? '3' : '2'}" />
+                <text text-anchor="middle" dy="-8" font-size="9" fill="#c7d2fe" font-weight="bold">Neurônio A</text>
+                <text text-anchor="middle" dy="5" font-size="8" fill="#94a3b8">z_A: ${isSumL1 ? zA.toFixed(1) : '?'}</text>
+                <text text-anchor="middle" dy="18" font-size="10" fill="#818cf8" font-weight="extrabold">a_A: ${step >= 3 ? aA.toFixed(1) : '?'}</text>
+              </g>
+
+              <!-- NEURÔNIO B (Linha 2 de W1) -->
+              <g transform="translate(255, 225)">
+                <circle r="28" fill="#451a03" stroke="#fbbf24" stroke-width="${isSumL1 ? '3' : '2'}" />
+                <text text-anchor="middle" dy="-8" font-size="9" fill="#fde68a" font-weight="bold">Neurônio B</text>
+                <text text-anchor="middle" dy="5" font-size="8" fill="#94a3b8">z_B: ${isSumL1 ? zB.toFixed(1) : '?'}</text>
+                <text text-anchor="middle" dy="18" font-size="10" fill="#fbbf24" font-weight="extrabold">a_B: ${step >= 3 ? aB.toFixed(1) : '?'}</text>
+              </g>
+
+              <!-- NEURÔNIO DE SAÍDA (W2) -->
+              <g transform="translate(435, 150)">
+                <circle r="26" fill="#064e3b" stroke="#10b981" stroke-width="${isOutput ? '3' : '2'}" />
+                <text text-anchor="middle" dy="-8" font-size="9" fill="#a7f3d0" font-weight="bold">Saída ŷ</text>
+                <text text-anchor="middle" dy="7" font-size="12" fill="#ffffff" font-weight="extrabold">
+                  ${isOutput ? y_pred.toFixed(1) : '?'}
+                </text>
+                <text text-anchor="middle" dy="19" font-size="8" fill="#6ee7b7">alvo: ${mModel.target.toFixed(0)}</text>
+              </g>
+
+              <!-- ALVO REAL -->
+              <g transform="translate(505, 150)">
+                <circle r="16" fill="#1e293b" stroke="#f43f5e" stroke-width="2" />
+                <text text-anchor="middle" dy="4" font-size="9" fill="#f43f5e" font-weight="bold">${mModel.target.toFixed(0)}</text>
+              </g>
+            </svg>
+
+            <!-- Status do Passo -->
+            <div class="mt-2 p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between text-xs font-mono">
+              <span class="text-slate-400">Fluxo da Camada:</span>
+              <span class="${step >= 4 ? 'text-emerald-400 font-bold' : 'text-slate-400'}">
+                ${step < 2 ? 'Propagando Entrada ➔ Oculta' : (step < 4 ? 'Ativações Ocultas ➔ Saída' : (step === 5 ? '⚠️ Onda de Erro voltando via W₂ᵀ' : 'Rede Concluída'))}
+              </span>
+            </div>
+          </div>
+
+          <!-- NOTAÇÃO MATRICIAL LATEX COMPLETA (DIREITA) -->
+          <div class="lg:col-span-6 space-y-4">
+            
+            <!-- CAMADA 1: A MATRIZ W1 (2x2) -->
+            <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-4 space-y-3 shadow-lg">
+              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">
+                  1. Camada Oculta: z₁ = W₁ · x
+                </span>
+                <span class="text-[11px] text-slate-400 font-mono">Matriz W₁ (2×2)</span>
+              </div>
+
+              <!-- Equação Matricial com Colchetes LaTeX -->
+              <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 flex flex-wrap items-center justify-center gap-2.5 text-xs font-mono">
+                
+                <!-- Matriz W1 -->
+                <div class="flex flex-col items-center">
+                  <span class="text-[9px] text-slate-400 mb-0.5">Matriz de Pesos W₁</span>
+                  <div class="latex-mat ${step === 1 ? 'latex-mat-active' : ''} bg-slate-900 flex-col gap-1.5">
+                    <div class="flex gap-4">
+                      <span class="text-indigo-400 font-bold">${isUpdated ? new_w1A.toFixed(1) : mModel.w1A.toFixed(1)}</span>
+                      <span class="text-indigo-400 font-bold">${isUpdated ? new_w2A.toFixed(1) : mModel.w2A.toFixed(1)}</span>
+                    </div>
+                    <div class="flex gap-4">
+                      <span class="text-amber-400 font-bold">${isUpdated ? new_w1B.toFixed(1) : mModel.w1B.toFixed(1)}</span>
+                      <span class="text-amber-400 font-bold">${isUpdated ? new_w2B.toFixed(1) : mModel.w2B.toFixed(1)}</span>
+                    </div>
+                  </div>
+                  <div class="text-[8px] text-slate-500 mt-1 flex justify-between w-full px-1">
+                    <span class="text-indigo-400">Linha A</span>
+                    <span class="text-amber-400">Linha B</span>
+                  </div>
+                </div>
+
+                <span class="text-slate-400 font-bold text-base">·</span>
+
+                <!-- Vetor x -->
+                <div class="flex flex-col items-center">
+                  <span class="text-[9px] text-slate-400 mb-0.5">Vetor x</span>
+                  <div class="latex-mat ${step === 1 ? 'latex-mat-active' : ''} bg-slate-900 flex-col gap-1">
+                    <span class="text-blue-300 font-bold">${mModel.x1.toFixed(1)}</span>
+                    <span class="text-emerald-300 font-bold">${mModel.x2.toFixed(1)}</span>
+                  </div>
+                </div>
+
+                <span class="text-slate-400 font-bold text-base">=</span>
+
+                <!-- Vetor z1 -->
+                <div class="flex flex-col items-center">
+                  <span class="text-[9px] text-slate-400 mb-0.5">Vetor z₁</span>
+                  <div class="latex-mat ${step >= 2 ? 'latex-mat-active' : ''} bg-slate-900 flex-col gap-1">
+                    <span class="text-indigo-400 font-bold">${step >= 2 ? zA.toFixed(1) : '?'}</span>
+                    <span class="text-amber-400 font-bold">${step >= 2 ? zB.toFixed(1) : '?'}</span>
+                  </div>
+                </div>
+
+                <span class="text-slate-400 font-bold text-base">➔</span>
+
+                <!-- Vetor a1 (ReLU) -->
+                <div class="flex flex-col items-center">
+                  <span class="text-[9px] text-slate-400 mb-0.5">Ativação a₁</span>
+                  <div class="latex-mat ${step >= 3 ? 'latex-mat-active' : ''} bg-slate-900 flex-col gap-1">
+                    <span class="text-indigo-300 font-extrabold">${step >= 3 ? aA.toFixed(1) : '?'}</span>
+                    <span class="text-amber-300 font-extrabold">${step >= 3 ? aB.toFixed(1) : '?'}</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- CAMADA 2: A MATRIZ DE SAÍDA W2 (1x2) E BACKPROP TRANSPOSTO -->
+            <div class="bg-slate-900 border ${step >= 4 ? 'border-rose-500/40 bg-rose-950/10' : 'border-slate-700/80'} rounded-xl p-4 space-y-3 shadow-lg">
+              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <span class="text-xs font-bold uppercase tracking-wider ${step >= 4 ? 'text-rose-400' : 'text-emerald-400'}">
+                  2. Camada de Saída & Backpropagation Transposto
+                </span>
+                <span class="text-[11px] text-slate-400 font-mono">y_pred = W₂ · a₁</span>
+              </div>
+
+              <!-- Multiplicação da Saída -->
+              <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between text-xs font-mono">
+                <div>
+                  <span class="text-slate-400 block text-[10px]">Saída Calculada:</span>
+                  <span class="text-emerald-400 font-bold text-sm">y = ${step >= 4 ? y_pred.toFixed(1) : '?'}</span>
+                  <span class="text-slate-500 text-[10px] ml-1">(Alvo: ${mModel.target.toFixed(0)})</span>
+                </div>
+                <div class="text-right">
+                  <span class="text-slate-400 block text-[10px]">Tensão da Mola (δ_out):</span>
+                  <span class="${step >= 4 ? 'text-rose-400 font-extrabold text-sm' : 'text-slate-500'}">
+                    ${step >= 4 ? deltaOut.toFixed(1) : '?'}
+                  </span>
+                </div>
+              </div>
+
+              <!-- A MÁGICA DA MATRIZ TRANSPOSTA W2^T -->
+              <div class="p-3 bg-slate-950 rounded-lg border border-rose-500/30 space-y-2">
+                <span class="text-rose-300 font-sans font-bold block text-xs">
+                  A Culpa Volta pela Matriz Transposta (W₂ᵀ · δ_out):
+                </span>
+                
+                <div class="flex items-center justify-center gap-2.5 text-xs font-mono">
+                  <!-- Vetor Coluna W2^T -->
+                  <div class="flex flex-col items-center">
+                    <span class="text-[9px] text-slate-400">W₂ᵀ (Coluna)</span>
+                    <div class="latex-mat ${step >= 5 ? 'latex-mat-error' : ''} bg-slate-900 flex-col gap-1">
+                      <span class="text-emerald-400 font-bold">${mModel.wOutA.toFixed(1)}</span>
+                      <span class="text-emerald-400 font-bold">${mModel.wOutB.toFixed(1)}</span>
+                    </div>
+                  </div>
+
+                  <span class="text-rose-400 font-bold text-base">·</span>
+
+                  <!-- Escalar deltaOut -->
+                  <div class="flex flex-col items-center">
+                    <span class="text-[9px] text-slate-400">δ_out</span>
+                    <div class="latex-mat ${step >= 5 ? 'latex-mat-error' : ''} bg-slate-900">
+                      <span class="text-rose-400 font-bold">${step >= 5 ? deltaOut.toFixed(1) : '?'}</span>
+                    </div>
+                  </div>
+
+                  <span class="text-rose-400 font-bold text-base">=</span>
+
+                  <!-- Culpas nos neurônios Ocultos -->
+                  <div class="flex flex-col items-center">
+                    <span class="text-[9px] text-slate-400">Culpas [δ_A, δ_B]</span>
+                    <div class="latex-mat ${step >= 5 ? 'latex-mat-error' : ''} bg-slate-900 flex-col gap-1">
+                      <span class="text-indigo-300 font-bold">${step >= 5 ? deltaA.toFixed(1) : '?'}</span>
+                      <span class="text-amber-300 font-bold">${step >= 5 ? deltaB.toFixed(1) : '?'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="text-[11px] text-slate-400 font-sans mt-1 text-center">
+                  A mesma conexão que combinou os sinais na ida reparte proporcionalmente a culpa na volta!
+                </p>
+              </div>
+
+              <!-- Atualização SGD -->
+              ${step === 6 ? `
+                <div class="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 font-sans text-xs">
+                  ✨ <strong>Matrizes Atualizadas com Sucesso!</strong> As tensões elásticas diminuíram em todas as conexões.
+                </div>
+              ` : ''}
+            </div>
+
+          </div>
+
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // MODO 2: DETECTOR 2x2 (PRESETS, GRID INTERATIVO, SVG E TREINO SGD AO VIVO)
+    // =========================================================================
+    function setPreset(p) {
+      dModel.preset = p;
+      if (p === "diag_principal") {
+        dModel.p1 = 1; dModel.p2 = 0; dModel.p3 = 0; dModel.p4 = 1;
+        dModel.target = 1.0;
+      } else if (p === "horiz") {
+        dModel.p1 = 1; dModel.p2 = 1; dModel.p3 = 0; dModel.p4 = 0;
+        dModel.target = 0.0;
+      } else if (p === "diag_sec") {
+        dModel.p1 = 0; dModel.p2 = 1; dModel.p3 = 1; dModel.p4 = 0;
+        dModel.target = 0.0;
+      } else if (p === "preta") {
+        dModel.p1 = 0; dModel.p2 = 0; dModel.p3 = 0; dModel.p4 = 0;
+        dModel.target = 0.0;
+      }
+      step = 0;
+      render();
+    }
+
+    function togglePixel(idx) {
+      if (idx === 1) dModel.p1 = dModel.p1 ? 0 : 1;
+      if (idx === 2) dModel.p2 = dModel.p2 ? 0 : 1;
+      if (idx === 3) dModel.p3 = dModel.p3 ? 0 : 1;
+      if (idx === 4) dModel.p4 = dModel.p4 ? 0 : 1;
+      dModel.preset = "personalizado";
+      render();
+    }
+
+    function resetWeightsToy() {
+      // Volta para o estado inicial manual antes do treino (com Dying ReLU para testar)
+      dModel.w1 = 0.10;
+      dModel.w2 = 0.10;
+      dModel.w3 = 0.10;
+      dModel.w4 = 0.10;
+      dModel.b = -0.50;
+      step = 0;
+      render();
+    }
+
+    function applyJupyterLearnedWeights() {
+      // Aplica os pesos aprendidos no Jupyter!
+      dModel.w1 = 0.315;
+      dModel.w2 = -0.320;
+      dModel.w3 = 0.038;
+      dModel.w4 = 0.674;
+      dModel.b = 0.006;
+      step = 0;
+      render();
+    }
+
+    function renderMode2() {
+      const p1 = dModel.p1, p2 = dModel.p2, p3 = dModel.p3, p4 = dModel.p4;
+
+      const z = (dModel.w1 * p1) + (dModel.w2 * p2) + (dModel.w3 * p3) + (dModel.w4 * p4) + dModel.b;
+      const a = Math.max(0, z);
+      const delta = (a - dModel.target);
+      const loss = 0.5 * (delta * delta);
+
+      // Gradientes
+      const grad1 = delta * p1;
+      const grad2 = delta * p2;
+      const grad3 = delta * p3;
+      const grad4 = delta * p4;
+      const grad_b = delta * 1.0;
+
+      // Pesos atualizados no step 6
+      const new_w1 = dModel.w1 - dModel.lr * grad1;
+      const new_w2 = dModel.w2 - dModel.lr * grad2;
+      const new_w3 = dModel.w3 - dModel.lr * grad3;
+      const new_w4 = dModel.w4 - dModel.lr * grad4;
+      const new_b  = dModel.b - dModel.lr * grad_b;
+
+      const isTraveling = (step === 1);
+      const isSumming = (step >= 2);
+      const isFired = (step >= 3 && a > 0);
+      const isDying = (step >= 3 && z <= 0);
+      const isCompared = (step >= 4);
+      const isBackprop = (step === 5);
+      const isUpdated = (step === 6);
+
+      return `
+        <div class="space-y-4">
+          
+          <!-- BARRA SUPERIOR: PRESETS DE IMAGENS E CONTROLE DE PESOS DO JUPYTER -->
+          <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-3 flex-wrap shadow-lg">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">Imagem 2×2:</span>
+              <button onclick="setPreset('diag_principal')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${dModel.preset === 'diag_principal' ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:text-white'}">
+                Diagonal (\\) [Alvo: 1.0]
+              </button>
+              <button onclick="setPreset('horiz')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${dModel.preset === 'horiz' ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:text-white'}">
+                Horizontal (-) [Alvo: 0.0]
+              </button>
+              <button onclick="setPreset('diag_sec')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${dModel.preset === 'diag_sec' ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:text-white'}">
+                Anti-Diagonal (/) [Alvo: 0.0]
+              </button>
+              <button onclick="setPreset('preta')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${dModel.preset === 'preta' ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:text-white'}">
+                Tudo Preto [Alvo: 0.0]
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button onclick="resetWeightsToy()" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-950/60 hover:bg-rose-900 border border-rose-500/40 text-rose-300 transition" title="Pesos iniciais w=0.1, b=-0.5 que causam Dying ReLU">
+                Pesos Iniciais (Dying ReLU)
+              </button>
+              <button onclick="applyJupyterLearnedWeights()" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow transition" title="Aplica os pesos aprendidos no Jupyter!">
+                ⭐ Pesos do Jupyter
+              </button>
+            </div>
+          </div>
+
+          <!-- GRID PRINCIPAL DO DETECTOR 2x2 -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            
+            <!-- ESQUERDA: SVG COM O GRID 2x2 CONECTADO AO NEURÔNIO -->
+            <div class="lg:col-span-6 bg-slate-900 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between shadow-2xl">
+              <div class="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2 mb-2 font-mono">
+                <span class="text-blue-400 font-bold">Grid 2×2 (Clique nos Pixels)</span>
+                <span class="text-indigo-400 font-bold">Detector (Filtro)</span>
+                <span class="${isCompared ? 'text-rose-400' : 'text-emerald-400'} font-bold">
+                  ${isCompared ? 'Alvo vs Predição' : 'Saída'}
+                </span>
+              </div>
+
+              <svg viewBox="0 0 540 300" class="w-full h-auto select-none">
+                <defs>
+                  <filter id="glow-d-cyan" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="5" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                  <filter id="glow-d-rose" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                </defs>
+
+                <!-- CONEXÕES DOS 4 PIXELS AO NEURÔNIO CENTRAL -->
+                <!-- Pixel 1 (Topo Esquerdo) -->
+                <path d="M 85 70 Q 180 70, 270 140" fill="none"
+                      stroke="${isBackprop ? '#f43f5e' : '#38bdf8'}" 
+                      stroke-width="${p1 ? Math.max(2, Math.abs(dModel.w1) * 6) : '1.5'}"
+                      stroke-dasharray="${isBackprop ? '5 3' : 'none'}" opacity="${p1 ? '1' : '0.3'}" />
+
+                <!-- Pixel 2 (Topo Direito - O EXTINTOR/INIBIDOR!) -->
+                <path d="M 145 70 Q 200 80, 270 140" fill="none"
+                      stroke="${isBackprop ? '#f43f5e' : (dModel.w2 < 0 ? '#ef4444' : '#10b981')}" 
+                      stroke-width="${p2 ? Math.max(2, Math.abs(dModel.w2) * 6) : '1.5'}"
+                      stroke-dasharray="${dModel.w2 < 0 ? '4 3' : (isBackprop ? '5 3' : 'none')}" opacity="${p2 ? '1' : '0.3'}" />
+
+                <!-- Pixel 3 (Baixo Esquerdo) -->
+                <path d="M 85 130 Q 180 150, 270 150" fill="none"
+                      stroke="${isBackprop ? '#f43f5e' : '#f59e0b'}" 
+                      stroke-width="${p3 ? Math.max(2, Math.abs(dModel.w3) * 6) : '1.5'}"
+                      stroke-dasharray="${isBackprop ? '5 3' : 'none'}" opacity="${p3 ? '1' : '0.3'}" />
+
+                <!-- Pixel 4 (Baixo Direito) -->
+                <path d="M 145 130 Q 210 160, 270 150" fill="none"
+                      stroke="${isBackprop ? '#f43f5e' : '#a855f7'}" 
+                      stroke-width="${p4 ? Math.max(2, Math.abs(dModel.w4) * 6) : '1.5'}"
+                      stroke-dasharray="${isBackprop ? '5 3' : 'none'}" opacity="${p4 ? '1' : '0.3'}" />
+
+                <!-- Perninha do Bias -->
+                <path d="M 115 220 Q 200 220, 270 170" fill="none"
+                      stroke="${isBackprop ? '#f43f5e' : '#ec4899'}" stroke-width="2" stroke-dasharray="2 2" />
+
+                <!-- Axônio Saída -->
+                <path d="M 370 150 L 440 150" fill="none"
+                      stroke="${isBackprop ? '#f43f5e' : (isFired ? '#38bdf8' : '#475569')}"
+                      stroke-width="${isFired ? '5' : '2.5'}"
+                      filter="${isFired ? 'url(#glow-d-cyan)' : 'none'}" />
+
+                <!-- Mola com Alvo -->
+                <path d="M 465 150 L 490 150" fill="none"
+                      stroke="${isCompared ? '#f43f5e' : '#334155'}" stroke-width="3" stroke-dasharray="3 3" />
+
+                <!-- PULSOS DE ENTRADA (Passo 1) -->
+                ${isTraveling ? `
+                  ${p1 ? '<circle cx="170" cy="95" r="7" fill="#38bdf8" class="pulse-data" />' : ''}
+                  ${p2 ? '<circle cx="205" cy="100" r="7" fill="#ef4444" class="pulse-data" />' : ''}
+                  ${p3 ? '<circle cx="175" cy="142" r="7" fill="#f59e0b" class="pulse-data" />' : ''}
+                  ${p4 ? '<circle cx="210" cy="145" r="7" fill="#a855f7" class="pulse-data" />' : ''}
+                  <circle cx="190" cy="205" r="5" fill="#ec4899" class="pulse-data" />
+                ` : ''}
+
+                <!-- ONDA DE RETORNO DO BACKPROP (Passo 5) -->
+                ${isBackprop ? `
+                  <circle cx="400" cy="150" r="8" fill="#f43f5e" class="pulse-error" />
+                  <circle cx="180" cy="100" r="6" fill="#f43f5e" class="pulse-error" />
+                  <circle cx="180" cy="145" r="6" fill="#f43f5e" class="pulse-error" />
+                ` : ''}
+
+                <!-- GRADE 2x2 DE PIXELS (CLICÁVEL) -->
+                <g transform="translate(55, 40)">
+                  <rect x="0" y="0" width="120" height="120" rx="10" fill="#020617" stroke="#334155" stroke-width="2" />
+                  
+                  <!-- p1 -->
+                  <g onclick="togglePixel(1)" class="cursor-pointer" transform="translate(6, 6)">
+                    <rect width="50" height="50" rx="6" fill="${p1 ? '#0284c7' : '#1e293b'}" stroke="#38bdf8" stroke-width="${p1 ? '2.5' : '1'}" />
+                    <text text-anchor="middle" x="25" y="24" font-size="10" fill="#ffffff" font-weight="bold">p₁</text>
+                    <text text-anchor="middle" x="25" y="42" font-size="14" fill="${p1 ? '#ffffff' : '#64748b'}" font-weight="extrabold">${p1}</text>
+                  </g>
+
+                  <!-- p2 -->
+                  <g onclick="togglePixel(2)" class="cursor-pointer" transform="translate(64, 6)">
+                    <rect width="50" height="50" rx="6" fill="${p2 ? '#047857' : '#1e293b'}" stroke="${dModel.w2 < 0 ? '#ef4444' : '#10b981'}" stroke-width="${p2 ? '2.5' : '1'}" />
+                    <text text-anchor="middle" x="25" y="24" font-size="10" fill="#ffffff" font-weight="bold">p₂</text>
+                    <text text-anchor="middle" x="25" y="42" font-size="14" fill="${p2 ? '#ffffff' : '#64748b'}" font-weight="extrabold">${p2}</text>
+                  </g>
+
+                  <!-- p3 -->
+                  <g onclick="togglePixel(3)" class="cursor-pointer" transform="translate(6, 64)">
+                    <rect width="50" height="50" rx="6" fill="${p3 ? '#b45309' : '#1e293b'}" stroke="#f59e0b" stroke-width="${p3 ? '2.5' : '1'}" />
+                    <text text-anchor="middle" x="25" y="24" font-size="10" fill="#ffffff" font-weight="bold">p₃</text>
+                    <text text-anchor="middle" x="25" y="42" font-size="14" fill="${p3 ? '#ffffff' : '#64748b'}" font-weight="extrabold">${p3}</text>
+                  </g>
+
+                  <!-- p4 -->
+                  <g onclick="togglePixel(4)" class="cursor-pointer" transform="translate(64, 64)">
+                    <rect width="50" height="50" rx="6" fill="${p4 ? '#7e22ce' : '#1e293b'}" stroke="#a855f7" stroke-width="${p4 ? '2.5' : '1'}" />
+                    <text text-anchor="middle" x="25" y="24" font-size="10" fill="#ffffff" font-weight="bold">p₄</text>
+                    <text text-anchor="middle" x="25" y="42" font-size="14" fill="${p4 ? '#ffffff' : '#64748b'}" font-weight="extrabold">${p4}</text>
+                  </g>
+                </g>
+
+                <!-- NÓ DO BIAS -->
+                <g transform="translate(115, 220)">
+                  <circle r="18" fill="#831843" stroke="#ec4899" stroke-width="2" />
+                  <text text-anchor="middle" dy="-2" font-size="8" fill="#fbcfe8" font-weight="bold">Bias b</text>
+                  <text text-anchor="middle" dy="9" font-size="10" fill="#ffffff" font-weight="extrabold">${dModel.b.toFixed(2)}</text>
+                </g>
+
+                <!-- NÚCLEO DO NEURÔNIO DETECTOR -->
+                <g transform="translate(320, 150)">
+                  ${isFired ? '<circle r="52" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.6" filter="url(#glow-d-cyan)" />' : ''}
+                  <circle r="46" fill="#1e293b" stroke="${isFired ? '#38bdf8' : (isDying ? '#ef4444' : '#475569')}" stroke-width="3" />
+                  <line x1="0" y1="-46" x2="0" y2="46" stroke="#334155" stroke-width="2" stroke-dasharray="3 3" />
+
+                  <!-- Lado Esquerdo: Soma z -->
+                  <text text-anchor="middle" x="-22" y="-12" font-size="14" fill="#94a3b8" font-weight="bold">Σ</text>
+                  <text text-anchor="middle" x="-22" y="4" font-size="8" fill="#64748b">soma afim</text>
+                  <text text-anchor="middle" x="-22" y="20" font-size="11" fill="${isSumming ? (z >= 0 ? '#38bdf8' : '#ef4444') : '#475569'}" font-family="monospace" font-weight="extrabold">
+                    ${isSumming ? z.toFixed(2) : '?'}
+                  </text>
+
+                  <!-- Lado Direito: Comporta ReLU -->
+                  <text text-anchor="middle" x="22" y="-12" font-size="10" fill="#a855f7" font-weight="bold">ReLU</text>
+                  <text text-anchor="middle" x="22" y="4" font-size="8" fill="#64748b">${isDying ? 'PAREDE' : 'LIVRE'}</text>
+                  <text text-anchor="middle" x="22" y="20" font-size="11" fill="${step >= 3 ? (a > 0 ? '#4ade80' : '#ef4444') : '#475569'}" font-family="monospace" font-weight="extrabold">
+                    ${step >= 3 ? a.toFixed(2) : '?'}
+                  </text>
+                </g>
+
+                <!-- AXÔNIO DE SAÍDA -->
+                <g transform="translate(450, 150)">
+                  <circle r="20" fill="${step >= 3 && isFired ? '#0284c7' : '#1e293b'}"
+                          stroke="${step >= 3 && isFired ? '#38bdf8' : '#475569'}" stroke-width="2.5" />
+                  <text text-anchor="middle" dy="-2" font-size="8" fill="#e2e8f0" font-weight="bold">Saída ŷ</text>
+                  <text text-anchor="middle" dy="11" font-size="12" fill="#ffffff" font-weight="extrabold">
+                    ${step >= 3 ? a.toFixed(2) : '?'}
+                  </text>
+                </g>
+
+                <!-- ALVO REAL -->
+                <g transform="translate(505, 150)">
+                  <circle r="18" fill="#064e3b" stroke="#10b981" stroke-width="2" />
+                  <text text-anchor="middle" dy="-2" font-size="8" fill="#a7f3d0" font-weight="bold">Alvo y</text>
+                  <text text-anchor="middle" dy="10" font-size="11" fill="#ffffff" font-weight="extrabold">${dModel.target.toFixed(1)}</text>
+                </g>
+              </svg>
+
+              <!-- Diagnóstico do Estado -->
+              <div class="mt-2 p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between text-xs font-mono">
+                <span class="text-slate-400">Diagnóstico do Detector:</span>
+                <span class="${isFired ? 'text-emerald-400 font-bold' : (isDying ? 'text-rose-400 font-bold' : 'text-slate-500')}">
+                  ${step < 3 ? 'Aguardando fluxo...' : (isFired ? '⚡ DIAGONAL DETECTADA!' : '🛑 BLOQUEADO: z ≤ 0 (Dying ReLU)')}
+                </span>
+              </div>
+            </div>
+
+            <!-- DIREITA: NOTAÇÃO MATRICIAL LATEX + FLATTEN + GRADIENTES -->
+            <div class="lg:col-span-6 space-y-4">
+              
+              <!-- CARD 1: O VETOR ACHATADO (FLATTEN) E A MATRIZ DE PESOS W -->
+              <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-4 space-y-3 shadow-lg">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span class="text-xs font-bold uppercase tracking-wider text-slate-300">
+                    📐 Vetor Flatten 1D e Pesos em LaTeX
+                  </span>
+                  <span class="text-xs text-blue-400 font-mono">z = W · x + b</span>
+                </div>
+
+                <!-- Representação Matricial LaTeX -->
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 flex flex-wrap items-center justify-center gap-2.5 text-xs font-mono">
+                  
+                  <span class="text-slate-400 font-bold">z =</span>
+
+                  <!-- Vetor Linha de Pesos W (1x4) -->
+                  <div class="flex flex-col items-center">
+                    <span class="text-[9px] text-slate-400 mb-0.5">Matriz de Pesos (W)</span>
+                    <div class="latex-mat ${step === 1 ? 'latex-mat-active' : ''} bg-slate-900 gap-2.5">
+                      <span class="text-blue-400 font-bold">${isUpdated ? new_w1.toFixed(2) : dModel.w1.toFixed(2)}</span>
+                      <span class="${dModel.w2 < 0 ? 'text-rose-400' : 'text-emerald-400'} font-bold">
+                        ${isUpdated ? new_w2.toFixed(2) : dModel.w2.toFixed(2)}
+                      </span>
+                      <span class="text-amber-400 font-bold">${isUpdated ? new_w3.toFixed(2) : dModel.w3.toFixed(2)}</span>
+                      <span class="text-purple-400 font-bold">${isUpdated ? new_w4.toFixed(2) : dModel.w4.toFixed(2)}</span>
+                    </div>
+                    <div class="flex gap-3 text-[8px] text-slate-500 mt-0.5">
+                      <span>w₁</span><span>w₂</span><span>w₃</span><span>w₄</span>
+                    </div>
+                  </div>
+
+                  <span class="text-slate-400 font-bold text-base">·</span>
+
+                  <!-- Vetor Coluna x (4x1) -->
+                  <div class="flex flex-col items-center">
+                    <span class="text-[9px] text-slate-400 mb-0.5">Vetor x (Flatten)</span>
+                    <div class="latex-mat ${step === 1 ? 'latex-mat-active' : ''} bg-slate-900 flex-col gap-0.5">
+                      <span class="text-blue-300 font-bold">${p1}</span>
+                      <span class="text-emerald-300 font-bold">${p2}</span>
+                      <span class="text-amber-300 font-bold">${p3}</span>
+                      <span class="text-purple-300 font-bold">${p4}</span>
+                    </div>
+                  </div>
+
+                  <span class="text-slate-400 font-bold text-base">+</span>
+
+                  <!-- Bias b -->
+                  <div class="flex flex-col items-center">
+                    <span class="text-[9px] text-slate-400 mb-0.5">Bias b</span>
+                    <div class="latex-mat bg-slate-900">
+                      <span class="text-pink-400 font-bold">${isUpdated ? new_b.toFixed(2) : dModel.b.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <span class="text-slate-400 font-bold text-base">=</span>
+
+                  <!-- Escalar z -->
+                  <div class="flex flex-col items-center">
+                    <span class="text-[9px] text-slate-400 mb-0.5">Escalar z</span>
+                    <div class="latex-mat ${step >= 2 ? 'latex-mat-active' : ''} bg-slate-900">
+                      <span class="${step >= 2 ? (z >= 0 ? 'text-cyan-400 font-extrabold' : 'text-rose-400 font-extrabold') : 'text-slate-500'}">
+                        ${step >= 2 ? z.toFixed(2) : '?'}
+                      </span>
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- Expansão Par a Par -->
+                <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-xs font-mono space-y-1">
+                  <div class="text-slate-300">
+                    z = (<span class="text-blue-400 font-bold">${dModel.w1.toFixed(2)} × ${p1}</span>) + 
+                        (<span class="${dModel.w2 < 0 ? 'text-rose-400' : 'text-emerald-400'} font-bold">${dModel.w2.toFixed(2)} × ${p2}</span>) + 
+                        (<span class="text-amber-400 font-bold">${dModel.w3.toFixed(2)} × ${p3}</span>) + 
+                        (<span class="text-purple-400 font-bold">${dModel.w4.toFixed(2)} × ${p4}</span>) + 
+                        (<span class="text-pink-400 font-bold">${dModel.b.toFixed(2)}</span>)
+                  </div>
+                  <div class="text-slate-300">
+                    z = ${(dModel.w1 * p1).toFixed(2)} + ${(dModel.w2 * p2).toFixed(2)} + ${(dModel.w3 * p3).toFixed(2)} + ${(dModel.w4 * p4).toFixed(2)} + ${dModel.b.toFixed(2)} = 
+                    <strong class="${z >= 0 ? 'text-cyan-400' : 'text-rose-400'}">${step >= 2 ? z.toFixed(2) : '?'}</strong> ➔ 
+                    ReLU: <strong class="${a > 0 ? 'text-emerald-400' : 'text-rose-400'}">${step >= 3 ? a.toFixed(2) : '?'}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CARD 2: BACKPROPAGATION E GRADIENTES DOS 4 PESOS -->
+              <div class="bg-slate-900 border ${step >= 4 ? 'border-rose-500/40 bg-rose-950/10' : 'border-slate-800'} rounded-xl p-4 space-y-3 font-mono text-xs shadow-lg">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                  <span class="font-sans font-bold ${step >= 4 ? 'text-rose-400' : 'text-slate-400'}">
+                    🪝 Tensão do Erro (Alvo = ${dModel.target.toFixed(1)}):
+                  </span>
+                  <span class="font-bold ${step >= 4 ? 'text-rose-300' : 'text-slate-500'}">
+                    δ = (${step >= 3 ? a.toFixed(2) : '?'} - ${dModel.target.toFixed(1)}) = ${step >= 4 ? delta.toFixed(2) : '?'}
+                  </span>
+                </div>
+
+                <!-- Vetor de Gradientes LaTeX -->
+                <div>
+                  <span class="text-slate-400 font-sans text-[11px] font-bold block mb-1.5">
+                    Gradientes que voltam para cada peso (∇W = δ · xᵀ):
+                  </span>
+                  <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-center gap-3">
+                    <span class="text-rose-400 font-bold">∇W =</span>
+                    <div class="latex-mat ${step >= 5 ? 'latex-mat-error' : ''} bg-slate-900 gap-3">
+                      <span class="text-blue-400 font-bold">${step >= 5 ? grad1.toFixed(2) : '—'}</span>
+                      <span class="text-emerald-400 font-bold">${step >= 5 ? grad2.toFixed(2) : '—'}</span>
+                      <span class="text-amber-400 font-bold">${step >= 5 ? grad3.toFixed(2) : '—'}</span>
+                      <span class="text-purple-400 font-bold">${step >= 5 ? grad4.toFixed(2) : '—'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Atualização SGD -->
+                ${step === 6 ? `
+                  <div class="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 font-sans text-xs">
+                    ✨ <strong>Novos Pesos Após o Alívio da Mola:</strong><br>
+                    w₁: <strong>${new_w1.toFixed(3)}</strong> | 
+                    w₂: <strong>${new_w2.toFixed(3)}</strong> | 
+                    w₃: <strong>${new_w3.toFixed(3)}</strong> | 
+                    w₄: <strong>${new_w4.toFixed(3)}</strong> | 
+                    b: <strong>${new_b.toFixed(3)}</strong>
+                  </div>
+                ` : ''}
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      `;
+    }
+
+    // Inicialização ao carregar a página
+    window.onload = function() {
+      render();
+    };
+  </script>
+</body>
+</html>
