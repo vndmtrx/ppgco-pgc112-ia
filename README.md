@@ -11,3 +11,5 @@ As instruções do ambiente Docker (`quay.io/jupyter/pytorch-notebook:latest`), 
 - [**Mini-projeto 1: Buscas Clássicas e Otimização**](./mini_projeto_1/README.md)
   - [Parte 1: Buscas Clássicas (BFS e Heurística/Greedy)](./mini_projeto_1/parte_1_buscas_classicas/README.md)
   - [Parte 2: Otimização com Gradiente Descendente](./mini_projeto_1/parte_2_gradiente_descendente/README.md)
+- [**Mini-projeto 2: Visão Computacional com Redes Neurais (MLP vs. CNN)**](./mini_projeto_2/README.md)
+  - [Fundamentação Teórica e Metodologia](./mini_projeto_2/METODOLOGIA.md)
