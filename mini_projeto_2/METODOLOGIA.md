@@ -169,45 +169,45 @@ Estabelecemos a correspondência formal da função de perda com a Teoria da Inf
 
 ### 4.5. O Experimento Empírico 2x2: Anatomia do Neurônio Detector de Diagonais e a Solução do *Dying ReLU*
 
-Para validar no menor microcosmo possível os conceitos de inicialização, ativação, gradiente e emergência, realizamos um experimento no Jupyter Notebook com uma imagem binária mínima de $2 \times 2$ pixels (4 entradas: $p_1, p_2, p_3, p_4$):
+Para validar no menor microcosmo possível os conceitos de inicialização, ativação, gradiente e emergência, montei e executei um experimento no Jupyter Notebook com uma imagem binária mínima de $2 \times 2$ pixels (4 entradas: $p_1, p_2, p_3, p_4$):
 $$\mathbf{X} = \begin{bmatrix} p_1 & p_2 \\ p_3 & p_4 \end{bmatrix}$$
 
-O objetivo pedagógico foi treinar um único neurônio artificial para atuar como um **detector específico de diagonal principal** ($p_1=1, p_4=1$), rejeitando linhas horizontais, imagens pretas e anti-diagonais.
+O meu objetivo prático foi treinar um único neurônio artificial para atuar como um **detector específico de diagonal principal** ($p_1=1, p_4=1$), rejeitando linhas horizontais, imagens pretas e anti-diagonais.
 
 #### 1. A Armadilha do *Dying ReLU* (Neurônio Morto)
-Inicializamos manualmente os pesos e o viés com:
+Inicializei manualmente os pesos e o viés com:
 $$\mathbf{W} = \begin{bmatrix} 0.1 & 0.1 & 0.1 & 0.1 \end{bmatrix}, \quad b = -0.5$$
 
 Ao passar a imagem diagonal $\mathbf{x}_{\text{diag}} = \begin{bmatrix} 1 & 0 & 0 & 1 \end{bmatrix}$:
 $$z_{\text{diag}} = (1 \times 0.1) + (0 \times 0.1) + (0 \times 0.1) + (1 \times 0.1) + (-0.5) = 0.2 - 0.5 = -0.3$$
 Como a função de ativação era a $\text{ReLU}(z) = \max(0, z)$, a saída foi $\text{ReLU}(-0.3) = 0.0$ em vez do esperado $1.0$.
 
-Ao inspecionar o gradiente com `loss.backward()`, constatamos empiricamente o fenômeno do **Dying ReLU**:
+Ao inspecionar o gradiente com `loss.backward()`, comprovei na prática o fenômeno do **Dying ReLU**:
 $$\frac{\partial \mathcal{L}}{\partial \mathbf{W}} = 2(\hat{y} - y) \cdot \text{ReLU}'(z) \cdot \mathbf{x} = 2(0 - 1) \cdot \mathbf{0} \cdot \mathbf{x} = \mathbf{0}$$
-Como a derivada da ReLU para valores estritamente negativos é identicamente nula, a tensão do erro foi bloqueada na saída, impedindo qualquer ajuste nos pesos (o neurônio adormeceu).
+Como a derivada da ReLU para valores estritamente negativos é zero, a tensão do erro foi bloqueada na saída, impedindo qualquer ajuste nos pesos (o neurônio adormeceu).
 
 #### 2. Quebra de Simetria e Emergência do Peso Inibitório
-Ao corrigir a inicialização do bias para $b = 0.0$ (permitindo a passagem inicial do sinal) e submeter o neurônio a 100 épocas de Gradiente Descendente Estocástico (SGD com $\eta = 0.1$) em um lote com 4 imagens canônicas (Diagonal, Horizontal, Preta e Anti-diagonal), observamos uma notável emergência geométrica nos pesos convergidos:
+Ao corrigir a inicialização do bias para $b = 0.0$ (permitindo a passagem inicial do sinal) e treinar o neurônio por 100 épocas de Gradiente Descendente Estocástico (SGD com $\eta = 0.1$) em um lote com 4 imagens canônicas (Diagonal, Horizontal, Preta e Anti-diagonal), observei uma notável emergência geométrica nos pesos convergidos:
 $$\mathbf{W}_{\text{aprendido}} \approx \begin{bmatrix} +0.315 & -0.320 & +0.038 & +0.674 \end{bmatrix}, \quad b_{\text{aprendido}} \approx +0.006$$
 
 - **Pesos Excitadores ($w_1 \approx +0.315$, $w_4 \approx +0.674$):** O gradiente amplificou os canais correspondentes aos pixels da diagonal principal. A soma de ambos ($0.315 + 0.674 \approx 0.99$) atinge exatamente o alvo unitário desejado.
-- **O Peso Inibitório como Filtro Anti-Confusão ($w_2 \approx -0.320$):** O neurônio descobriu espontaneamente que uma linha horizontal também acende o pixel superior esquerdo ($p_1=1$). Para não confundir uma reta horizontal com uma diagonal, ele atribuiu um **peso negativo e de magnitude equivalente** ao pixel vizinho ($p_2$). Assim, na imagem horizontal ($[1, 1, 0, 0]$), a ativação do segundo pixel cancela o primeiro ($+0.315 - 0.320 \approx -0.005$), anulando a saída na ReLU!
+- **O Peso Inibitório como Filtro Anti-Confusão ($w_2 \approx -0.320$):** O neurônio descobriu sozinho que uma linha horizontal também acende o pixel superior esquerdo ($p_1=1$). Para não confundir uma reta horizontal com uma diagonal, ele atribuiu um **peso negativo e de magnitude equivalente** ao pixel vizinho ($p_2$). Assim, na imagem horizontal ($[1, 1, 0, 0]$), a ativação do segundo pixel cancela o primeiro ($+0.315 - 0.320 \approx -0.005$), anulando a saída na ReLU!
 - **Convergência das Predições Finais:**
   - Imagem Diagonal: **$0.996$** (Alvo: $1.0$ — Detecção confirmada);
   - Imagem Horizontal: **$0.001$** (Alvo: $0.0$);
   - Imagem Preta: **$0.006$** (Alvo: $0.0$);
   - Imagem Anti-diagonal: **$0.000$** (Alvo: $0.0$).
 
-Este microcosmo comprova que os neurônios aprendem "antídotos" (pesos inibitórios) para diferenciar traços conflitantes, princípio idêntico ao que o MLP e a CNN utilizarão nas 784 entradas do MNIST para discriminar dígitos morfologicamente semelhantes como o $4$ e o $9$, ou o $3$ e o $5$.
+Este microcosmo me comprovou que os neurônios aprendem "antídotos" (pesos inibitórios) para diferenciar traços conflitantes, princípio idêntico ao que o MLP e a CNN utilizarão nas 784 entradas do MNIST para discriminar dígitos morfologicamente semelhantes como o $4$ e o $9$, ou o $3$ e o $5$.
 
 ### 4.6. Concepção e Arquitetura do Estudo Dirigido Interativo (`estudo_dirigido.html`)
 
-Para aprofundar e consolidar a compreensão conceitual e mecânica do modelo neural antes de iniciar a codificação em larga escala no PyTorch, o discente solicitou ao assistente de IA em *pair programming* (**Antigravity**) a concepção e implementação de uma ferramenta web interativa de estudo dirigido ([`estudo_dirigido.html`](./estudo_dirigido.html)).
+Para aprofundar e consolidar o meu entendimento conceitual e mecânico do modelo neural antes de iniciar a codificação em larga escala no PyTorch, eu pedi ao Antigravity para criar comigo uma ferramenta web interativa de estudo dirigido ([`estudo_dirigido.html`](./estudo_dirigido.html)).
 
-A motivação do discente foi dispor de um ambiente de experimentação visual onde as especificações matemáticas extraídas diretamente dos livros de referência da disciplina — em especial a formulação do Perceptron e coordenadas homogêneas de **Russell & Norvig (Cap. 22)** e a dinâmica de retropropagação, funções de custo e camadas densas de **Smola et al. (*D2L*, Cap. 4)** — pudessem ser manipuladas e testadas na prática. O objetivo foi permitir ao aluno alterar valores de entrada e pesos e observar simultaneamente:
+A minha motivação foi dispor de um ambiente de experimentação visual onde eu pudesse testar na prática as especificações matemáticas extraídas diretamente dos livros de referência da matéria — em especial a formulação do Perceptron e coordenadas homogêneas de **Russell & Norvig (Cap. 22)** e a dinâmica de retropropagação, funções de custo e camadas densas de **Smola et al. (*D2L*, Cap. 4)**. Meu objetivo foi poder alterar valores de entrada e pesos e ver, simultaneamente e em tempo real:
 
 1. **A Dupla Representação Pareada (Biológica vs. Tensorial):** Visualizar de um lado o diagrama arquitetural com nós e conexões sinápticas coloridas e, do outro, a formulação matricial rigorosa em estilo LaTeX com colchetes sólidos ($\begin{bmatrix} \dots \end{bmatrix}$), compreendendo como cada perninha sináptica se mapeia diretamente em um elemento de vetor ou linha de matriz contígua em memória.
-2. **Execução Passo a Passo do Fluxo de Informação (*Stepper* Dinâmico):** Habilitar um controle de fases com animação por onde o usuário pode avançar e retroceder para acompanhar:
+2. **Execução Passo a Passo do Fluxo de Informação (*Stepper* Dinâmico):** Ter um controle de fases com animação por onde eu pudesse avançar e retroceder para acompanhar:
    - Os pulsos elétricos de dados ($x_i \cdot w_i$) trafegando pelas conexões sinápticas;
    - A soma afim de redução no núcleo celular ($\sum$);
    - O teste de disparo da comporta não-linear (ReLU);
@@ -217,9 +217,44 @@ A motivação do discente foi dispor de um ambiente de experimentação visual o
 3. **Escalaridade em Três Níveis de Abstração:**
    - **Nível 1 (O Perceptron Simples):** O neurônio isolado, a entrada dummy $x_0 = +1.0$ e o produto escalar afim $\mathbf{w}^\top \mathbf{x}$;
    - **Nível 2 (A Rede Multicamadas):** Duas camadas completas, demonstrando o empilhamento das linhas na matriz $\mathbf{W}_1$ ($2 \times 2$), o vetor de ativações intermediárias $\mathbf{a}_1$ e o retorno do erro pela transposta $\mathbf{W}_2^\top$;
-   - **Nível 3 (O Estudo de Caso 2×2):** O microcosmo empírico testado no Jupyter, com grade de pixels interativa clicável, demonstração em tempo real da trava do *Dying ReLU* e carregamento dos pesos aprendidos pelo SGD ($w_1=+0.315, w_2=-0.320, w_3=+0.038, w_4=+0.674, b=+0.006$).
+   - **Nível 3 (O Estudo de Caso 2×2):** O microcosmo empírico que testei no Jupyter, com grade de pixels interativa clicável, demonstração em tempo real da trava do *Dying ReLU* e carregamento dos pesos aprendidos pelo SGD ($w_1=+0.315, w_2=-0.320, w_3=+0.038, w_4=+0.674, b=+0.006$).
 
-Essa ferramenta serviu como um elo epistemológico fundamental, permitindo ao aluno validar hipóteses, visualizar o comportamento dos gradientes e eliminar quaisquer dúvidas conceituais antes de prosseguir com os scripts definitivos do mini-projeto.
+Essa ferramenta foi fundamental para o meu aprendizado, permitindo que eu validasse hipóteses, visse o comportamento dos gradientes e tirasse minhas dúvidas conceituais antes de partir para a implementação definitiva.
+
+### 4.7. O Salto Conceitual do One-Hot: Tratando Rótulos como Classes Categóricas e Não Grandezas Numéricas
+
+Durante os primeiros testes práticos com a arquitetura MLP sobre o MNIST, me surgiu uma dúvida fundamental sobre a mecânica de cálculo da função de perda:
+- Ao analisar a discrepância de erro $|y_{\text{pred}} - y|$, comecei a suspeitar: **o que estaria distorcendo a convergência do aprendizado? Seria a função de ativação ReLU? Seria a formulação da função de perda quadrática?**
+- Foi aí que me veio o estalo: **percebi que estávamos tratando os dígitos manuscritos como grandezas numéricas escalares contínuas (números com magnitude e ordem), e não como elementos abstratos de um conjunto de classes equivalentes (onde todos os dígitos possuem exatamente o mesmo peso e importância).**
+
+#### A Falácia Métrica da Saída Escalar
+Se a rede possuísse apenas 1 neurônio de saída treinado para prever um escalar contínuo $y \in \{0, 1, \dots, 9\}$, uma métrica de distância ordinária $|y_{\text{pred}} - y|$ introduziria uma topologia artificial e desastrosa no espaço de busca:
+1. **Distorção de Penalidade:** Se a imagem apresentada for um $0$ e a rede predizer $7$, o erro é $|7 - 0| = 7$; mas se predizer $1$, o erro é $|1 - 0| = 1$. O algoritmo de gradiente concluiria erroneamente que errar um zero dizendo que é sete é **7 vezes mais grave** do que dizer que é um, embora do ponto de vista morfológico e de classificação ambas sejam confusões categóricas com o mesmo custo prático.
+2. **Falsa Média Geométrica:** Um número intermediário como o $4$ seria interpretado como o "ponto médio" entre o $1$ e o $7$, o que não possui nenhum fundamento semântico ou caligráfico.
+
+#### A Formalização em $\mathbb{R}^{10}$ e a Conexão com LeCun (1998)
+Para que todas as 10 classes possuam rigorosamente o mesmo peso e a mesma distância geométrica mútua, compreendi que as classes precisam ser **ortogonais no espaço**:
+- Cada classe $c \in \{0, \dots, 9\}$ é projetada em um vetor unitário da base canônica em $\mathbb{R}^{10}$ (**codificação One-Hot** ou *"1-of-K coding"*):
+  $$\mathbf{y}_{\text{one-hot}} = \mathbf{e}_c = \begin{bmatrix} 0 & \dots & 1.0 & \dots & 0 \end{bmatrix}$$
+- Essa representação está no cerne do trabalho seminal de **LeCun et al. (1998)**:
+  - Na época de LeCun, a ativação utilizada na saída era a tangente hiperbólica ($\tanh \in [-1, +1]$), o que levava a um alvo bipolar ($+1.0$ para a classe correta e $-1.0$ para as demais);
+  - Na formulação moderna que adotei aqui, com ReLU, utilizamos $1.0$ para o canal excitado e $0.0$ para os canais inibidos (`F.one_hot`);
+- **Resultado:** A camada de saída passa a ter **10 neurônios competidores**, cada um responsável por estimar a pertinência da imagem a um dígito específico. A distância euclidiana entre quaisquer duas classes distintas passa a ser estritamente constante ($\|\mathbf{e}_i - \mathbf{e}_j\| = \sqrt{2}$ para todo $i \neq j$), eliminando qualquer hierarquia numérica arbitrária e permitindo que o modelo aprenda filtros independentes para cada classe.
+
+#### 4.7.1. Validação Empírica do Benchmark de LeCun (1998)
+Com o One-Hot devidamente formulado e utilizando a perda quadrática MSE, implementei o script [`treinar_mlp_v1.py`](./treinar_mlp_v1.py) e executei no meu terminal os dois testes clássicos de rede densa documentados na Tabela 1 de LeCun et al. (1998):
+
+1. **MLP de 1 Camada Oculta ($784 \to 300 \to 10$):**
+   - Total de $238.510$ parâmetros treináveis;
+   - Treinado com SGD puro ($\eta = 0.1$) por 3 épocas (tempo: $\approx 25$ segundos);
+   - **Resultado no Teste Oficial (10.000 imagens):** $9.541$ acertos (**$95{,}41\%$ de acurácia**, erro de **$4{,}59\%$**);
+   - **Conexão com a literatura:** Bateu quase exatamente com o benchmark histórico publicado por LeCun em 1998 (**$4{,}7\%$ de erro**).
+2. **MLP de 2 Camadas Ocultas ($784 \to 300 \to 100 \to 10$):**
+   - Total de $266.610$ parâmetros treináveis;
+   - **Resultado no Teste Oficial:** $9.478$ acertos (**$94{,}78\%$ de acurácia**, erro de **$5{,}22\%$**);
+   - **Diagnóstico:** Em poucas épocas (apenas 3) e sem decaimento de taxa de aprendizado, a rede mais profunda demora ligeiramente mais para coordenar as duas camadas intermediárias. LeCun precisou de mais épocas e programação de $\eta$ para convergir a $3{,}05\%$.
+
+Este experimento serviu como a linha de base (*baseline*) inicial para o nosso projeto, comprovando que o pipeline está íntegro e reproduzindo a literatura canônica.
 
 ---
 
@@ -230,15 +265,16 @@ Essa ferramenta serviu como um elo epistemológico fundamental, permitindo ao al
 | **11/10/2026** | Inicialização e Análise do Problema | Leitura do enunciado oficial (`03-projeto-visao-simples.pdf`), mapeamento das demandas (MNIST, normalização, MLP vs CNN, hiperparâmetros e análise morfológica de confusões) e correlações bibliográficas com Russell & Norvig (Cap. 22) e Smola (*D2L*, Caps. 4, 5 e 7). |
 | **14/10/2026** | Fundamentação Física da Derivada | Resgate dos fundamentos do cálculo diferencial: analogia mecânica da calibragem do sistema de freio de um carro (parar de 100 km/h a 0 km/h na marca de 15m), conceito de proporção dinâmica instantânea e geometria da reta tangente ($\tan \theta$). |
 | **18/10/2026** | A Camada Neural e o Dummy `+1` | Análise da Figura 22.3 do Russell. Compreensão do dummy input `+1` (coordenadas homogêneas) para embutir o bias $w_0$ na multiplicação matricial limpa, a matriz de pesos pertencendo à camada e a operação de soma de redução. |
-| **21/10/2026** | Discussão de Paradigma: POO vs. Tensores | Reflexão histórica de 2001: por que descartamos classes `Perceptron` com nós de grafo e threads concorrentes (evitando fragmentação de memória e *cache misses*) em favor de matrizes contíguas de alta performance na GPU. |
-| **26/10/2026** | Alinhamento de Escopo e Ferramental | Decisão metodológica de focar estritamente no ecossistema PyTorch, descartando implementações redundantes do zero e priorizando a geração rica de gráficos analíticos e diagnósticos visuais. |
+| **21/10/2026** | Discussão de Paradigma: POO vs. Tensores | Reflexão histórica de 2001: por que descarte de classes `Perceptron` com nós de grafo e threads concorrentes (evitando fragmentação de memória e *cache misses*) em favor de matrizes contíguas de alta performance na GPU. |
+| **26/10/2026** | Alinhamento de Escopo e Ferramental | Minha decisão metodológica de focar estritamente no ecossistema PyTorch, descartando implementações redundantes do zero e priorizando a geração rica de gráficos analíticos e diagnósticos visuais. |
 | **29/10/2026** | Pipeline de Dados e Divisão (Split) | Implementação de `dataset.py`. Download oficial do MNIST e cálculo empírico da média ($\mu = 0.1307$) e desvio padrão ($\sigma = 0.3081$). Divisão rigorosa em Treino ($50.000$), Validação ($10.000$) e Teste ($10.000$). |
 | **29/10/2026** | Exploração Visual e Blindagem TDD | Geração dos gráficos em 300 DPI em `figuras/` (balanceamento das classes e amostras caligráficas). Criação de `tests/test_dataset.py` e configuração de `pytest.ini`, com 5 testes automatizados aprovados (100% de sucesso). |
-| **29/10/2026** | Consolidação Teórica dos Dados | Discussão e registro do porquê de $\mu \approx 0.1307$ (dados esparsos com 87% de fundo preto), a física da normalização (analogia com o centro de gravidade do Projeto 1 para eliminar oscilações em zigue-zague no gradiente) e a ética do teste lacrado. |
+| **29/10/2026** | Consolidação Teórica dos Dados | Compreensão do porquê de $\mu \approx 0.1307$ (dados esparsos com 87% de fundo preto), a física da normalização (analogia com o centro de gravidade do Projeto 1 para eliminar oscilações em zigue-zague no gradiente) e a ética do teste lacrado. |
 | **29/10/2026 (Noite)** | Epistemologia Física: Molas e Entropia | Descoberta da equivalência entre a função de perda e a energia elástica de uma mola (Lei de Hooke e alívio de tensão com matrizes transpostas), emergência de propriedades por quebra de simetria (*Three Body Problem*) e convergência para o estado de mínima entropia de Shannon. Criação de `laboratorio_backprop.py`. |
-| **30/10/2026** | Concepção do Estudo Dirigido Interativo | Solicitação do aluno ao Antigravity para criar um laboratório interativo (`estudo_dirigido.html`) baseado no Russell & Norvig e Smola, unificando a visão biológica do perceptron com a álgebra matricial em LaTeX para experimentação de valores. |
-| **04/11/2026 (Manhã)** | O Toy Model 2x2 e a Solução do Dying ReLU | Implementação empírica no Jupyter Notebook do detector de diagonais. Diagnóstico do gradiente nulo quando $z < 0$ com ReLU. Treinamento com SGD demonstrando o surgimento espontâneo do peso inibitório ($w_2 \approx -0.320$) para anular horizontais e convergência a 0.996. |
-| **04/11/2026 (Tarde)** | Estudo Dirigido com Matrizes LaTeX e Backprop | Evolução do `estudo_dirigido.html` solicitada pelo aluno com animação completa das 3 fases, notação formal de matrizes em LaTeX com colchetes, onda reversa via $\mathbf{W}^\top$ e integração com os pesos treinados no notebook. |
+| **30/10/2026** | Concepção do Estudo Dirigido Interativo | Minha solicitação ao Antigravity para criarmos um laboratório interativo (`estudo_dirigido.html`) baseado no Russell & Norvig e Smola, unificando a visão biológica do perceptron com a álgebra matricial em LaTeX para eu poder experimentar valores. |
+| **04/11/2026 (Manhã)** | O Toy Model 2x2 e a Solução do Dying ReLU | Meu experimento prático no Jupyter Notebook com o detector de diagonais. Diagnóstico do gradiente nulo quando $z < 0$ com ReLU. Treinamento com SGD demonstrando o surgimento espontâneo do peso inibitório ($w_2 \approx -0.320$) para anular horizontais e convergência a 0.996. |
+| **04/11/2026 (Tarde)** | Estudo Dirigido com Matrizes LaTeX e Backprop | Evolução do `estudo_dirigido.html` que pedi ao Antigravity com animação completa das 3 fases, notação formal de matrizes em LaTeX com colchetes, onda reversa via $\mathbf{W}^\top$ e integração com os pesos que treinei no notebook. |
+| **04/11/2026 (Fim de Tarde)** | O Salto Conceitual do One-Hot e Benchmark LeCun | Meu insight sobre a falácia de tratar dígitos como números escalares e adoção formal da codificação One-Hot em $\mathbb{R}^{10}$ (*1-of-K coding* de LeCun). Treinamento e replicação dos experimentos clássicos de LeCun (1998) com 1 e 2 camadas ocultas, atingindo 4.59% de erro de teste nas 10.000 amostras oficiais. |
 
 
 

@@ -88,9 +88,10 @@ O desenvolvimento está estruturado nas 5 etapas planejadas a partir do enunciad
   - [ ] Testes unitários para validação matemática das métricas.
 
 - [ ] **Etapa 3: MLP com Softmax & ReLU (Seção II do Enunciado)**
-  - [ ] Implementar a família de modelos MLP configurável em [`models/mlp.py`](./models/mlp.py).
-  - [ ] Treinamento com otimizador SGD e função de perda Entropia Cruzada (*Cross-Entropy*).
-  - [ ] Estudo de hiperparâmetros (profundidade e neurônios por camada).
+  - [x] Implementar a arquitetura base do MLP configurável em [`models/mlp.py`](./models/mlp.py).
+  - [x] Replicação experimental do baseline clássico de LeCun (1998) com MSE e One-Hot em [`treinar_mlp_v1.py`](./treinar_mlp_v1.py).
+  - [ ] Implementar variante com camada de saída Softmax e perda Entropia Cruzada (*Cross-Entropy*).
+  - [ ] Estudo comparativo de hiperparâmetros (profundidade e neurônios por camada).
   - [ ] Curvas de perda (treino vs. validação) por época e matriz de confusão no teste.
   - [ ] Diagnóstico qualitativo dos dígitos mais confundidos entre si (ex.: $4 \leftrightarrow 9$, $3 \leftrightarrow 5$).
 
@@ -117,6 +118,9 @@ mini_projeto_2/
 ├── estudo_dirigido.html           # Estudo dirigido para compreensão conceitual do modelo neural (álgebra e backprop)
 │
 ├── dataset.py                     # Pipeline de dados: download, split 50k/10k/10k e normalização
+├── treinar_mlp_v1.py              # Script experimental: baseline de LeCun (1998) com MSE e One-Hot
+├── models/
+│   └── mlp.py                     # Arquitetura MLP totalmente conectada com ReLU
 ├── data/                          # Binários baixados do MNIST (ignorado no git)
 ├── figuras/                       # Gráficos em alta resolução (300 DPI) gerados
 │   ├── distribuicao_classes.png   # Histograma de balanceamento de classes
