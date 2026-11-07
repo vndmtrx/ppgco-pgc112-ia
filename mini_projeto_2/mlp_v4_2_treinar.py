@@ -289,12 +289,13 @@ def executar_treinamento(
 
     # Nomenclatura descritiva única
     dims_str = "-".join(str(d) for d in hidden_dims)
+    arch_str = f"_h{dims_str}" if hidden_dims != [300] else ""
     mom_str = f"_m{momentum}" if momentum > 0 else ""
     opt_str = f"_{otimizador_nome}" if otimizador_nome != "sgd" else ""
-    id_exp = f"mlp_treinado_v4_2_e{num_epocas}_b{batch_size}_lr{lr}{mom_str}{opt_str}"
+    id_exp = f"mlp_treinado_v4_2_e{num_epocas}_b{batch_size}_lr{lr}{mom_str}{opt_str}{arch_str}"
     
     caminho_checkpoint = PASTA_MODELO / f"{id_exp}.pth"
-    pasta_destino = PASTA_FIGURAS / f"v4_2_e{num_epocas}_b{batch_size}"
+    pasta_destino = PASTA_FIGURAS / f"v4_2_e{num_epocas}_b{batch_size}{arch_str}"
 
     titulo_exp = f"E={num_epocas}, B={batch_size}, LR={lr}, Opt={otimizador_nome.upper()}"
     if momentum > 0:
