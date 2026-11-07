@@ -50,8 +50,13 @@ def dataset_para_ram(dataset: Dataset) -> TensorDataset:
     return TensorDataset(imagens, rotulos)
 
 
-def carregar_checkpoint(caminho: Path, input_dim: int = 784, hidden_dims: List[int] = [300], num_classes: int = 10) -> Tuple[MLP, Path]:
-    """Instancia a arquitetura vazia e injeta os pesos salvos do arquivo .pth."""
+def carregar_checkpoint(
+    caminho: Path,
+    input_dim: int = 784,
+    hidden_dims: List[int] = None,
+    num_classes: int = 10,
+) -> Tuple[MLP, Path]:
+    """Instancia a arquitetura e injeta os pesos salvos do arquivo .pth (com auto-detecção de camadas)."""
     if not caminho.exists():
         # Se foi passado apenas o nome do arquivo, tenta buscar dentro de PASTA_MODELO
         caminho_alternativo = PASTA_MODELO / caminho.name
@@ -66,8 +71,19 @@ def carregar_checkpoint(caminho: Path, input_dim: int = 784, hidden_dims: List[i
                     msg_erro += f"  • {arq.name}\n"
             raise FileNotFoundError(msg_erro)
 
-    modelo = MLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
     estado = torch.load(caminho, weights_only=True)
+
+    # Auto-detecção de arquitetura a partir do formato dos tensores salvos
+    if hidden_dims is None:
+        linear_weights = [v for k, v in estado.items() if k.endswith(".weight") and "network." in k]
+        if len(linear_weights) > 1:
+            hidden_dims = [int(w.shape[0]) for w in linear_weights[:-1]]
+            input_dim = int(linear_weights[0].shape[1])
+            num_classes = int(linear_weights[-1].shape[0])
+        else:
+            hidden_dims = [300]
+
+    modelo = MLP(input_dim=input_dim, hidden_dims=hidden_dims, num_classes=num_classes)
     modelo.load_state_dict(estado)
     modelo.eval()
     return modelo, caminho
