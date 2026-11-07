@@ -295,7 +295,7 @@ def executar_treinamento(
     id_exp = f"mlp_treinado_v4_2_e{num_epocas}_b{batch_size}_lr{lr}{mom_str}{opt_str}{arch_str}"
     
     caminho_checkpoint = PASTA_MODELO / f"{id_exp}.pth"
-    pasta_destino = PASTA_FIGURAS / f"v4_2_e{num_epocas}_b{batch_size}{arch_str}"
+    pasta_destino = PASTA_FIGURAS / id_exp.replace("mlp_treinado_", "")
 
     titulo_exp = f"E={num_epocas}, B={batch_size}, LR={lr}, Opt={otimizador_nome.upper()}"
     if momentum > 0:

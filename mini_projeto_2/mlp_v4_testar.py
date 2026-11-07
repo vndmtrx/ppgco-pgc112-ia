@@ -399,9 +399,13 @@ def executar_testes(caminho_arquivo: str = None) -> None:
     for rank, (qtd, real, pred) in enumerate(metricas["top_confusoes"], 1):
         print(f"  {rank}. Dígito {real} classificado como {pred}: {qtd} vezes")
 
-    # 6. Geração dos gráficos de teste organizados por subpasta de épocas
-    match_epoca = re.search(r"e\d+", caminho_resolvido.stem)
-    subpasta = match_epoca.group(0) if match_epoca else caminho_resolvido.stem
+    # 6. Geração dos gráficos de teste organizados por subpasta
+    if "v4_2_" in caminho_resolvido.stem:
+        pos = caminho_resolvido.stem.find("v4_2_")
+        subpasta = caminho_resolvido.stem[pos:]
+    else:
+        match_epoca = re.search(r"e\d+", caminho_resolvido.stem)
+        subpasta = match_epoca.group(0) if match_epoca else caminho_resolvido.stem
     pasta_destino = PASTA_FIGURAS / subpasta
 
     salvar_graficos_teste(
