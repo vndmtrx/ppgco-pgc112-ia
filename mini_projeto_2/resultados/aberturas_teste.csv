@@ -1,0 +1,2 @@
+data_hora,checkpoint,acuracia_teste,erros,perda_teste
+2026-11-09T14:57:41,mlp_treinado_v5_e50_b256_lr0.1_m0.9_h512_s1_melhor.pth,98.19,181,0.06039
