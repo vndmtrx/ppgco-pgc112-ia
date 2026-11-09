@@ -69,6 +69,39 @@ docker run --rm \
   python3 dataset.py
 ```
 
+### 2.4. Linha v5 (melhor modelo pela validação)
+
+```bash
+# Treina e salva o checkpoint de menor perda de validação (usa --seed; sem o teste)
+python mlp_v5_treinar.py -e 100 -b 256 -l 0.1 -m 0.9 --hidden-dims 300 100 --seed 1
+
+# Bateria completa: 15 configurações x sementes (SEEDS="1 2 3 4 5" para mais sementes)
+./executar_bateria_v5.sh
+
+# Escolhe a configuração pela validação (média e desvio entre sementes)
+python mlp_v5_selecionar.py
+
+# Abre o teste UMA vez, no checkpoint escolhido (registra em resultados/aberturas_teste.csv)
+python mlp_v5_testar.py -c <nome>_melhor.pth
+```
+
+### 2.5. Linha v6 (MSE ou Entropia Cruzada no padrão do v5)
+
+```bash
+# Treina com MSE (v3) ou entropia cruzada (v4), com semente e melhor checkpoint pela validação
+python mlp_v6_treinar.py -e 50 --perda mse --seed 1
+python mlp_v6_treinar.py -e 50 --perda ce  --seed 1
+
+# Bateria que refaz a comparação MSE x CE (50 e 200 épocas com 3 sementes; 500 épocas com 1)
+./executar_bateria_v6.sh
+
+# Compara MSE e CE pela validação (não abre o teste)
+python mlp_v6_selecionar.py
+
+# Abre o teste num checkpoint escolhido (a perda vem do nome do arquivo)
+python mlp_v6_testar.py -c <nome>_melhor.pth
+```
+
 ---
 
 ## 3. Roteiro e Status das Etapas do Projeto
@@ -89,7 +122,7 @@ O desenvolvimento está estruturado nas 5 etapas planejadas a partir do enunciad
   - [x] Galeria visual das imagens reais do MNIST onde a rede errou a predição.
   - [x] Testes unitários para validação analítica das métricas em [`tests/test_mlp.py`](./tests/test_mlp.py).
 
-- [ ] **Etapa 3: MLP com Softmax & ReLU (Seção II do Enunciado)**
+- [x] **Etapa 3: MLP com Softmax & ReLU (Seção II do Enunciado)**
   - [x] Implementar a arquitetura base do MLP configurável em [`models/mlp.py`](./models/mlp.py).
   - [x] Replicação experimental do baseline clássico de LeCun (1998) com MSE e One-Hot em [`mlp_v1_treinar.py`](./mlp_v1_treinar.py).
   - [x] Implementação de persistência em disco em [`mlp_v2_treinar.py`](./mlp_v2_treinar.py).
@@ -97,8 +130,9 @@ O desenvolvimento está estruturado nas 5 etapas planejadas a partir do enunciad
   - [x] Estudo experimental de sobreajuste (3 a 500 épocas), validação da curva em "U" e justificativa de *Early Stopping*.
   - [x] Benchmark de aceleração em hardware (CPU Intel i7 vs. GPU NVIDIA RTX A1000 6GB), atingindo ganho de $2{,}83\times$ em treino e $\approx 90.000\text{ img/s}$ em inferência.
   - [x] Diagnóstico morfológico de confusões ($4 \leftrightarrow 9$, $7 \leftrightarrow 2$, $5 \leftrightarrow 3$, $3 \leftrightarrow 8$) e comprovação do aumento do erro $4 \to 9$ em sobreajuste.
-  - [x] Implementação e confronto controlado (*ceteris paribus*) da variante com camada Softmax nativa e perda Entropia Cruzada em [`mlp_v4_treinar.py`](./mlp_v4_treinar.py) e [`mlp_v4_testar.py`](./mlp_v4_testar.py), atingindo novo recorde de **$98{,}26\%$ de acurácia no teste (174 erros)**.
-  - [ ] Estudo comparativo de hiperparâmetros (profundidade e neurônios por camada).
+  - [x] Implementação e confronto controlado (*ceteris paribus*) da variante com camada Softmax nativa e perda Entropia Cruzada em [`mlp_v4_treinar.py`](./mlp_v4_treinar.py) e [`mlp_v4_testar.py`](./mlp_v4_testar.py), com $98{,}30\%$ de acurácia no teste a 50 épocas (170 erros; uma execução, sem semente fixa).
+  - [x] Estudo comparativo de hiperparâmetros (15 configurações: largura, profundidade, lote, momento, Adam/AdamW), com `mlp_v4_1_treinar.py`, `mlp_v4_2_treinar.py` e `executar_bateria.sh`; resultado na seção 4.14 da metodologia (uma semente, escolha feita sobre o teste).
+  - [x] v5: melhor modelo pela validação, `--seed`, 3 sementes e teste aberto uma vez (`mlp_v5_*.py`, `executar_bateria_v5.sh`). Bateria de 15 configurações x 3 sementes na CPU; escolhida a camada única de 512 neurônios ($784 \to 512 \to 10$, 407.050 parâmetros), com **98,19% no teste (181 erros)**, F1 macro 98,18%.
 
 - [ ] **Etapa 4: CNN estilo LeNet (Seção III do Enunciado)**
   - [ ] Implementar a arquitetura convolucional clássica em [`models/cnn.py`](./models/cnn.py).
@@ -120,7 +154,8 @@ mini_projeto_2/
 ├── METODOLOGIA.md                 # Diário metodológico e fundamentação teórica
 ├── requirements.txt               # Dependências do projeto (PyTorch, Torchvision, etc.)
 ├── pytest.ini                     # Configuração de caminhos para a suíte de testes
-├── estudo_dirigido.html           # Estudo dirigido para compreensão conceitual do modelo neural (álgebra e backprop)
+├── estudo_dirigido.html           # Estudo dirigido interativo: rede, matrizes e gráfico da perda editáveis, com treino e Dying ReLU
+├── estudo_dirigido_motor.js       # Motor numérico da página (ida, volta com ReLU', SGD); abra o HTML na mesma pasta
 │
 ├── dataset.py                     # Pipeline de dados: download, split 50k/10k/10k e normalização
 ├── mlp_v1_treinar.py              # Baseline experimental de LeCun (1998) com MSE e One-Hot
@@ -129,21 +164,29 @@ mini_projeto_2/
 ├── mlp_v3_testar.py               # Avaliação independente do modelo salvo contra o teste oficial (10k)
 ├── mlp_v4_treinar.py              # Treinamento com Softmax e Cross-Entropy sem One-Hot (rótulos inteiros)
 ├── mlp_v4_testar.py               # Avaliação independente do modelo v4 contra o teste oficial (10k)
+├── mlp_v4_1_treinar.py            # v4 com acumulação no dispositivo (sem sincronização por lote)
+├── mlp_v4_2_treinar.py            # v4 parametrizável (lote, lr, momento, otimizador, camadas)
+├── executar_bateria.sh            # Bateria v4.2 (15 configurações; treina e testa cada uma)
+├── mlp_v5_treinar.py              # v5: salva o checkpoint de menor perda de validação; --seed; resumo em CSV
+├── mlp_v5_testar.py               # v5: avalia no teste e registra cada abertura do teste
+├── mlp_v5_selecionar.py           # v5: escolhe a configuração pela validação (média ± desvio entre sementes)
+├── executar_bateria_v5.sh         # v5: 15 configurações x sementes, só treino e validação
+├── mlp_v6_treinar.py              # v6: v5 com --perda ce|mse (reúne v3 e v4 no padrão do v5)
+├── mlp_v6_testar.py               # v6: avalia no teste (perda lida do nome) e registra a abertura
+├── mlp_v6_selecionar.py           # v6: escolhe pela validação e compara MSE x CE
+├── executar_bateria_v6.sh         # v6: refaz a comparação MSE x CE (só treino e validação)
+├── graficos_mlp.py                # Gráficos de treino num módulo só (usado pelo v6)
 ├── models/
 │   └── mlp.py                     # Arquitetura MLP totalmente conectada com ReLU
 ├── data/                          # Binários baixados do MNIST (ignorado no git)
-├── modelo/                        # Checkpoints salvos dos pesos (.pth)
-│   ├── mlp_treinado.pth           # Modelo v2 persistido (3 épocas)
-│   ├── mlp_treinado_v3_e3.pth     # Modelo v3 treinado por 3 épocas (MSE)
-│   ├── mlp_treinado_v3_e50.pth    # Modelo v3 treinado por 50 épocas (MSE)
-│   ├── mlp_treinado_v3_e100.pth   # Modelo v3 treinado por 100 épocas (MSE)
-│   ├── mlp_treinado_v3_e200.pth   # Modelo v3 no ponto ótimo de generalização (200 épocas, MSE)
-│   ├── mlp_treinado_v4_e3.pth     # Modelo v4 treinado por 3 épocas (Cross-Entropy)
-│   └── mlp_treinado_v4_e50.pth    # Modelo v4 treinado por 50 épocas (Cross-Entropy, 98.26% de acurácia)
+├── modelo/                        # Checkpoints (.pth), ainda não versionados
+│   ├── mlp_treinado_v4_2_*.pth    # 15 modelos da bateria v4.2 (última época)
+│   └── mlp_treinado_v5_*_melhor.pth # v5: época de menor perda de validação
+├── resultados/                    # v5: resumo_v5.csv, <id>.json por execução, aberturas_teste.csv
 ├── figuras/                       # Relatórios visuais em alta resolução (300 DPI)
 │   ├── distribuicao_classes.png   # Histograma de balanceamento de classes
 │   ├── exemplos_digitos.png       # Grade de amostras visuais dos dígitos
-│   └── e<épocas>/                 # Subpastas dedicadas por regime de treinamento (e3/, e50/, e100/, e200/, e500/)
+│   └── <id do experimento>/       # Uma subpasta por execução (ex.: v4_2_e50_b256_lr0.1_h128/, v5_e50_b256_lr0.1_s1/)
 │       ├── mlp_treinado_v[3|4]_e*_perda.png            # Curva de perda (Treino vs Validação)
 │       ├── mlp_treinado_v[3|4]_e*_acuracia.png         # Curva de acurácia % (Treino vs Validação)
 │       ├── mlp_treinado_v[3|4]_e*_gap_generalizacao.png # Monitor de overfitting (Gap Treino - Val)
@@ -156,5 +199,10 @@ mini_projeto_2/
 │       └── mlp_treinado_v3_e*_painel_teste.png     # Dashboard consolidado de teste oficial
 └── tests/
     ├── test_dataset.py            # Testes automatizados do pipeline de dados
-    └── test_mlp.py                # Testes automatizados da arquitetura MLP e persistência
+    ├── test_mlp.py                # Testes automatizados da arquitetura MLP e persistência
+    ├── test_mlp_v6.py             # Testes do v6: perda MSE, ids, comparação MSE x CE e teste sintético
+    ├── estudo_dirigido_motor.test.js   # Testes do motor da página (node; gradiente, Dying ReLU, tanh e logística)
+    ├── estudo_dirigido_pagina.test.js  # Testes da página numa DOM simulada (precisa do jsdom; pula sem ele)
+    ├── estudo_dirigido_medidas.js      # Medidas da seção 4.6.1 da metodologia (node; semente fixa)
+    └── test_mlp_v5.py             # Testes do v5: melhor checkpoint, semente fixa e escolha pela validação
 ```

@@ -1,1550 +1,970 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Estudo Dirigido para Compreensão do Modelo Neural</title>
-  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
-  <style>
-    :root {
-      --bg: #0b1120;
-      --card-bg: #1e293b;
-      --border-color: #334155;
-      --text-main: #f8fafc;
-    }
-    body {
-      background-color: var(--bg);
-      color: var(--text-main);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-
-    /* Cores Canônicas por Canal / Entrada */
-    .c-bias  { color: #ec4899; }
-    .bg-bias { background-color: #ec4899; }
-    .border-bias { border-color: #ec4899; }
-
-    .c-p1  { color: #38bdf8; }
-    .bg-p1 { background-color: #38bdf8; }
-    .border-p1 { border-color: #38bdf8; }
-
-    .c-p2  { color: #10b981; }
-    .bg-p2 { background-color: #10b981; }
-    .border-p2 { border-color: #10b981; }
-
-    .c-p3  { color: #f59e0b; }
-    .bg-p3 { background-color: #f59e0b; }
-    .border-p3 { border-color: #f59e0b; }
-
-    .c-p4  { color: #a855f7; }
-    .bg-p4 { background-color: #a855f7; }
-    .border-p4 { border-color: #a855f7; }
-
-    .c-h1  { color: #818cf8; }
-    .bg-h1 { background-color: #818cf8; }
-    .border-h1 { border-color: #818cf8; }
-
-    .c-h2  { color: #fbbf24; }
-    .bg-h2 { background-color: #fbbf24; }
-    .border-h2 { border-color: #fbbf24; }
-
-    /* ESTILO DE MATRIZ LATEX COM COLCHETES SÓLIDOS [ ... ] */
-    .latex-mat {
-      display: inline-flex;
-      align-items: center;
-      position: relative;
-      padding: 6px 10px;
-      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    }
-    .latex-mat::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 6px;
-      border-left: 2.5px solid #94a3b8;
-      border-top: 2.5px solid #94a3b8;
-      border-bottom: 2.5px solid #94a3b8;
-      border-top-left-radius: 4px;
-      border-bottom-left-radius: 4px;
-    }
-    .latex-mat::after {
-      content: "";
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: 6px;
-      border-right: 2.5px solid #94a3b8;
-      border-top: 2.5px solid #94a3b8;
-      border-bottom: 2.5px solid #94a3b8;
-      border-top-right-radius: 4px;
-      border-bottom-right-radius: 4px;
-    }
-
-    /* Brackets destacados quando ativos */
-    .latex-mat-active::before, .latex-mat-active::after {
-      border-color: #38bdf8 !important;
-      box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
-    }
-    .latex-mat-error::before, .latex-mat-error::after {
-      border-color: #f43f5e !important;
-      box-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
-    }
-
-    /* Animações de Pulsos Elétricos nos Fios */
-    @keyframes pulseGlow {
-      0%, 100% { filter: drop-shadow(0 0 4px #38bdf8); }
-      50% { filter: drop-shadow(0 0 14px #38bdf8); }
-    }
-    .pulse-data {
-      animation: pulseGlow 1.2s infinite ease-in-out;
-    }
-
-    @keyframes backpropGlow {
-      0%, 100% { filter: drop-shadow(0 0 4px #f43f5e); }
-      50% { filter: drop-shadow(0 0 14px #f43f5e); }
-    }
-    .pulse-error {
-      animation: backpropGlow 1.0s infinite ease-in-out;
-    }
-
-    input[type=range] {
-      accent-color: #38bdf8;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estudo Dirigido: do neurônio ao Dying ReLU</title>
+<style>
+  :root {
+    --bg: #0b1120; --painel: #111a2e; --borda: #263250; --texto: #e2e8f0; --suave: #94a3b8;
+    --azul: #60a5fa; --rosa: #fb7185; --verde: #34d399; --ambar: #fbbf24; --roxo: #a78bfa; --cinza: #475569;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--texto); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 14px 20px; border-bottom: 1px solid var(--borda); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  h1 { font-size: 18px; margin: 0; }
+  h2 { font-size: 14px; margin: 0 0 8px; color: var(--suave); text-transform: uppercase; letter-spacing: .04em; }
+  main { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px; padding: 10px 16px; }
+  /* O diagrama encolhe com a altura da janela para sobrar espaço para os controles abaixo dele. */
+  #svg { display: block; margin: 0 auto; max-height: 38vh; }
+  #grafico { display: block; margin: 0 auto; max-height: 20vh; }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+  section, .cartao { background: var(--painel); border: 1px solid var(--borda); border-radius: 12px; padding: 10px 12px; }
+  button { font: inherit; cursor: pointer; color: var(--texto); background: #1e293b; border: 1px solid var(--borda); border-radius: 8px; padding: 6px 12px; }
+  button:hover { background: #26354f; }
+  button[aria-pressed="true"], button.ativo { background: #2563eb; border-color: #3b82f6; }
+  button.destaque { background: #059669; border-color: #10b981; font-weight: 600; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--ambar); outline-offset: 2px; }
+  .linha { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .grupo-botoes { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  label.campo { display: grid; grid-template-columns: 70px 1fr 56px; gap: 8px; align-items: center; font-size: 13px; color: var(--suave); }
+  label.campo output { color: var(--texto); font-variant-numeric: tabular-nums; text-align: right; }
+  input[type=range] { width: 100%; accent-color: var(--azul); }
+  input[type=number] { width: 66px; background: #0b1328; color: var(--texto); border: 1px solid var(--borda); border-radius: 6px; padding: 3px 5px; font: inherit; font-variant-numeric: tabular-nums; }
+  #explicacao { min-height: 3.2em; margin: 10px 0 0; }
+  #aviso { margin-top: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid #7f1d1d; background: #2a1215; color: #fecaca; display: none; }
+  #aviso.ativo { display: block; }
+  #aviso.ok { border-color: #14532d; background: #0f2a1d; color: #bbf7d0; }
+  svg text { font-family: inherit; }
+  .halo { paint-order: stroke; stroke: var(--painel); stroke-width: 4px; stroke-linejoin: round; }
+  .no-vivo circle { stroke: var(--verde); fill: #0f2a22; }
+  .no-morto circle { stroke: var(--cinza); fill: #1a2233; stroke-dasharray: 4 3; }
+  .no-entrada circle { stroke: var(--azul); fill: #0f1d3a; }
+  .no-morto .valor { fill: var(--suave); }
+  .no-saturado circle { stroke: var(--ambar); fill: #2a2410; stroke-dasharray: 4 3; }
+  .cel.fraca { color: var(--ambar); }
+  select { font: inherit; color: var(--texto); background: #0b1328; border: 1px solid var(--borda); border-radius: 6px; padding: 4px 8px; }
+  select:focus-visible { outline: 3px solid var(--ambar); outline-offset: 2px; }
+  label.sel { display: grid; grid-template-columns: 150px 1fr; gap: 8px; align-items: center; font-size: 13px; color: var(--suave); }
+  #grade-camadas { display: grid; gap: 12px; margin-top: 10px; }
+  .camada { border: 1px solid var(--borda); border-radius: 10px; padding: 10px; }
+  .camada h3 { margin: 0 0 6px; font-size: 13px; color: var(--ambar); }
+  .grupo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; padding: 6px 8px; border-radius: 8px; border: 1px dashed transparent; transition: opacity .15s, border-color .15s; }
+  .grupo .rotulo { flex-basis: 100%; font-size: 12px; color: var(--suave); }
+  .op { color: var(--suave); font-size: 18px; padding: 0 2px; }
+  .mat { display: grid; gap: 3px 6px; padding: 4px 8px; border-left: 2px solid var(--suave); border-right: 2px solid var(--suave); border-radius: 6px; align-items: center; justify-items: center; }
+  .mat .cel { min-width: 52px; text-align: center; font-variant-numeric: tabular-nums; padding: 2px 4px; border-radius: 4px; }
+  .mat .viés, .mat .vies { background: #2b2410; }
+  .cel.morta { color: var(--suave); text-decoration: line-through; }
+  .cel.zero { color: var(--ambar); }
+  [data-foco="1"] .grupo:not([data-g="1"]), [data-foco="2"] .grupo:not([data-g="2"]),
+  [data-foco="3"] .grupo:not([data-g="3"]), [data-foco="4"] .grupo:not([data-g="4"]) { opacity: .35; }
+  [data-foco="1"] .grupo[data-g="1"], [data-foco="2"] .grupo[data-g="2"],
+  [data-foco="3"] .grupo[data-g="3"], [data-foco="4"] .grupo[data-g="4"] { border-color: var(--ambar); }
+  #pixels { display: grid; grid-template-columns: repeat(2, 56px); gap: 6px; }
+  #pixels button { height: 56px; font-weight: 700; }
+  #pixels button.aceso { background: #f8fafc; color: #0f172a; }
+  .legenda { font-size: 12px; color: var(--suave); }
+  .nota { font-size: 13px; color: var(--suave); }
+  code { background: #0b1328; padding: 1px 5px; border-radius: 4px; }
+</style>
 </head>
-<body class="p-3 md:p-6 min-h-screen">
-  <div class="max-w-6xl mx-auto space-y-5">
+<body>
+<header>
+  <h1>Estudo dirigido: do neurônio ao Dying ReLU</h1>
+  <div class="grupo-botoes" role="group" aria-label="Escolha o experimento" id="abas"></div>
+</header>
 
-    <!-- Topo / Header -->
-    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800 pb-4">
-      <div>
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
-            Estudo Dirigido Preliminar
-          </span>
-          <span class="text-xs text-slate-500">PPGCO / UFU — Inteligência Artificial (Mini-Projeto 2)</span>
-        </div>
-        <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white mt-1">
-          Estudo Dirigido para Compreensão do Modelo Neural
-        </h1>
-        <p class="text-slate-400 text-xs md:text-sm mt-0.5">
-          Fundamentação teórica da álgebra linear, fluxo de dados no forward pass e dinâmica do gradiente (backpropagation) pré-implementação.
-        </p>
+<main>
+  <div style="display:grid; gap:16px; align-content:start;">
+    <section aria-labelledby="t-rede">
+      <div class="linha" style="justify-content:space-between;">
+        <h2 id="t-rede" style="margin:0;">A rede</h2>
+        <label style="display:flex; gap:8px; align-items:center; cursor:pointer;">
+          <input type="checkbox" id="tg-dummy" checked>
+          <span>Mostrar o dummy <strong>+1</strong> (o viés como entrada fixa)</span>
+        </label>
       </div>
+      <svg id="svg" viewBox="0 0 680 350" width="100%" role="img" aria-label="Diagrama da rede com os valores atuais"></svg>
+      <p class="legenda" id="leg-rede" style="margin:6px 0 0;"></p>
+      <div id="aviso" role="status"></div>
+    </section>
 
-      <!-- Abas dos 3 Modos de Estudo -->
-      <div class="inline-flex rounded-lg bg-slate-900 p-1 border border-slate-700 flex-wrap">
-        <button id="tab-0" onclick="setMode(0)" class="px-3 py-1.5 text-xs font-bold rounded-md transition-all bg-blue-600 text-white shadow">
-          1. O Perceptron Simples (Vetor & Bias)
-        </button>
-        <button id="tab-1" onclick="setMode(1)" class="px-3 py-1.5 text-xs font-bold rounded-md transition-all text-slate-400 hover:text-white">
-          2. Redes Multicamadas (Álgebra Matricial)
-        </button>
-        <button id="tab-2" onclick="setMode(2)" class="px-3 py-1.5 text-xs font-bold rounded-md transition-all text-slate-400 hover:text-white">
-          3. Estudo de Caso 2×2 (Dying ReLU & SGD)
-        </button>
-      </div>
-    </header>
+    <section aria-labelledby="t-ctrl">
+      <h2 id="t-ctrl">Experimente</h2>
+      <div id="controles" style="display:grid; gap:10px;"></div>
+    </section>
 
-    <!-- Barra de Controle Unificada (Stepper & Play) -->
-    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-lg">
-      <div class="flex items-center gap-2">
-        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Fase Atual:</span>
-        <span id="step-badge" class="px-3 py-1 rounded-full text-xs font-extrabold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-          Passo 0: Pronto
-        </span>
-      </div>
-
-      <!-- Bolinhas Indicadoras de Passo -->
-      <div id="step-dots" class="flex items-center gap-1.5"></div>
-
-      <!-- Botões de Controle -->
-      <div class="flex items-center gap-2">
-        <button id="btn-prev" onclick="prevStep()" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition disabled:opacity-30 disabled:cursor-not-allowed">
-          ◀ Anterior
-        </button>
-        <button id="btn-next" onclick="nextStep()" class="px-4 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white shadow transition disabled:opacity-30 disabled:cursor-not-allowed">
-          Avançar ▶
-        </button>
-        <button id="btn-play" onclick="togglePlay()" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow transition flex items-center gap-1">
-          <span id="play-icon">▶ Auto</span>
-        </button>
-        <button onclick="resetSim()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-400 hover:text-white transition" title="Reiniciar">
-          ↺
-        </button>
-      </div>
-    </div>
-
-    <!-- Explicação Narrativa da Fase Atual -->
-    <div id="narrative-card" class="bg-slate-800/40 border border-slate-700/60 rounded-xl p-4 space-y-1">
-      <h2 id="phase-title" class="text-sm md:text-base font-bold text-blue-300 flex items-center gap-2"></h2>
-      <p id="phase-desc" class="text-xs md:text-sm text-slate-300 leading-relaxed"></p>
-    </div>
-
-    <!-- PALCO DINÂMICO PRINCIPAL (Renderizado via JS) -->
-    <main id="stage" class="space-y-5"></main>
-
-    <!-- Rodapé -->
-    <footer class="text-center text-xs text-slate-500 pt-4 border-t border-slate-800">
-      Estudo Dirigido para Compreensão do Modelo Neural — Mini-Projeto 2 (PPGCO/UFU) — Documentado em <code>METODOLOGIA.md</code>.
-    </footer>
+    <section aria-labelledby="t-hist">
+      <h2 id="t-hist">Perda ao longo dos passos</h2>
+      <svg id="grafico" viewBox="0 0 680 150" width="100%" role="img" aria-label="Gráfico da perda por passo de treino"></svg>
+      <p class="legenda" id="leg-grafico"></p>
+    </section>
   </div>
 
-  <script>
-    // =========================================================================
-    // ESTADO GLOBAL DO SIMULADOR
-    // =========================================================================
-    let mode = 0;       // 0: Perceptron, 1: Multi-Perceptron, 2: Detector 2x2
-    let step = 0;       // 0 a 6
-    let isPlaying = false;
-    let playTimer = null;
+  <section aria-labelledby="t-mat">
+    <h2 id="t-mat">As contas em matrizes (os valores azuis podem ser editados)</h2>
+    <div class="linha" role="group" aria-label="Fase do cálculo" id="fases"></div>
+    <p id="explicacao" aria-live="polite"></p>
+    <div id="perda-faixa" class="cartao" style="margin-top:10px;"></div>
+    <div id="grade-camadas"></div>
+    <p class="nota" style="margin-top:12px;" id="nota-conv"></p>
+  </section>
+</main>
 
-    // MODELO 0: PERCEPTRON INDIVIDUAL
-    let pModel = {
-      x0: 1.0,  // bias dummy
-      x1: 2.0,  // pixel 1
-      x2: 1.0,  // pixel 2
-      w0: -1.5, // peso do bias
-      w1: 1.0,  // peso da perninha 1
-      w2: 0.5,  // peso da perninha 2
-      target: 2.0,
-      lr: 0.1,
-      activation: "relu"
-    };
+<script src="estudo_dirigido_motor.js?v=3"></script>
+<script>
+"use strict";
+// =============================================================================
+// PRESETS
+// =============================================================================
+const IMAGENS = {
+  diag:  { nome: "Diagonal", x: [1, 0, 0, 1], y: 1 },
+  horiz: { nome: "Horizontal", x: [1, 1, 0, 0], y: 0 },
+  preta: { nome: "Preta", x: [0, 0, 0, 0], y: 0 },
+  anti:  { nome: "Anti-diagonal", x: [0, 1, 1, 0], y: 0 },
+};
+const PESOS_DETECTOR = {
+  morto:   { nome: "Morto: w = 0,1 e b = −0,5", W: [0.1, 0.1, 0.1, 0.1], b: -0.5 },
+  vivo:    { nome: "Vivo: w = 0,1 e b = 0", W: [0.1, 0.1, 0.1, 0.1], b: 0 },
+  jupyter: { nome: "Treinado no Jupyter", W: [0.315, -0.320, 0.038, 0.674], b: 0.006 },
+};
 
-    // MODELO 1: MULTI-PERCEPTRON (2 CAMADAS)
-    let mModel = {
-      x1: 2.0,
-      x2: 1.0,
-      // Camada 1 (W1: 2x2, b1: 2x1)
-      w1A: 1.0, w2A: 2.0, bA: 0.0, // Linha 1 -> Neurônio A
-      w1B: 3.0, w2B: 0.0, bB: 0.0, // Linha 2 -> Neurônio B
-      // Camada 2 (W2: 1x2, bOut: 1x1)
-      wOutA: 2.0, wOutB: 1.0, bOut: 0.0,
-      target: 10.0,
-      lr: 0.01
-    };
+const MODOS = {
+  neuronio: {
+    aba: "1. Um neurônio",
+    camadas: [2, 1], saida: "relu",
+    W: [[[1, 0.5]]], b: [[-1.5]],
+    x: [2, 1], y: 2, lr: 0.1,
+    nomesEntrada: ["x₁", "x₂"], nomesNeuronios: [["n"]],
+    xMax: 20, yMin: 1, yMax: 100, yPasso: 1,
+    dica: "Um neurônio. Com ReLU, baixe o viés até z ficar negativo e veja o gradiente sumir de vez. Depois troque a ativação para logística ou tanh e compare: o gradiente fica minúsculo, mas não zero.",
+  },
+  duas: {
+    aba: "2. Duas camadas",
+    camadas: [2, 2, 1], saida: "linear",
+    W: [[[1, 2], [3, 0]], [[2, 1]]], b: [[0, 0], [0]],
+    x: [2, 1], y: 10, lr: 0.01,
+    nomesEntrada: ["x₁", "x₂"], nomesNeuronios: [["A", "B"], ["saída"]],
+    xMax: 20, yMin: 1, yMax: 100, yPasso: 1,
+    dica: "A culpa da saída volta pela transposta de W₂, mas só chega aos neurônios ocultos que estão vivos.",
+  },
+  detector: {
+    aba: "3. Detector 2×2 (Dying ReLU)",
+    camadas: [4, 1], saida: "relu",
+    W: [[[0.1, 0.1, 0.1, 0.1]]], b: [[-0.5]],
+    x: [1, 0, 0, 1], y: 1, lr: 0.1,
+    nomesEntrada: ["p₁", "p₂", "p₃", "p₄"], nomesNeuronios: [["detector"]],
+    pixels: true, yMax: 1,
+    dica: "Treine 20 passos com o neurônio morto e depois com o vivo. Compare o gráfico da perda. Depois troque a ativação para logística ou tanh e repita com os pesos \"Morto\": ele não morre, porque a derivada nunca chega a zero.",
+  },
+};
 
-    // MODELO 2: DETECTOR DE IMAGEM 2x2 (Configuração do experimento no Jupyter!)
-    let dModel = {
-      preset: "diag_principal", // 'diag_principal', 'horiz', 'preta', 'diag_sec'
-      p1: 1, p2: 0, p3: 0, p4: 1,
-      // Pesos convergidos no Jupyter ou default
-      w1: 0.315,
-      w2: -0.320,
-      w3: 0.038,
-      w4: 0.674,
-      b: 0.006,
-      target: 1.0,
-      lr: 0.1
-    };
+// =============================================================================
+// ESTADO
+// =============================================================================
+const E = {
+  modo: "neuronio", rede: null, x: [], y: 0, lr: 0.1,
+  fase: 0, historico: [], passos: 0, treinarEm: "atual", imagem: "diag", dummy: true, sorteioVivo: false,
+  ultimaInfo: "", timer: null,
+};
+const refs = {};
 
-    // ROTEIROS DIDÁTICOS DE CADA MODO
-    const scripts = {
-      0: [
-        {
-          title: "Passo 0: Configuração Inicial e Vetores em Repouso",
-          desc: "As entradas [x₀, x₁, x₂] estão posicionadas nos dendritos. Ao lado, veja a representação formal em vetor linha wᵀ e vetor coluna x no estilo LaTeX.",
-          badge: "0/6: Repouso"
-        },
-        {
-          title: "Passo 1: Pulsos Sinápticos via Multiplicação Par a Par (wᵢ · xᵢ)",
-          desc: "Cada entrada dispara um pulso elétrico pela sua respectiva perninha. Na matriz, cada elemento de w multiplica o elemento correspondente de x.",
-          badge: "1/6: Impulso"
-        },
-        {
-          title: "Passo 2: Soma de Redução (Σ) no Núcleo do Neurônio",
-          desc: "Todas as perninhas confluem para o centro do neurônio. Ocorre a redução afim: z = (w₀·x₀) + (w₁·x₁) + (w₂·x₂). Três números viram um único escalar!",
-          badge: "2/6: Soma Σ"
-        },
-        {
-          title: "Passo 3: Gatilho do Axônio (Função de Ativação ReLU)",
-          desc: "O valor afim z chega à comporta da ReLU. Se z > 0, o sinal passa desimpedido; se z ≤ 0, a comporta se fecha e o sinal é zerado (bloqueio).",
-          badge: "3/6: Ativação"
-        },
-        {
-          title: "Passo 4: Confronto com o Alvo & A Mola Elástica (Loss)",
-          desc: "A predição confronta o alvo desejado. A deformação da mola é o Erro δ = (a - y). A energia potencial Loss = ½δ² fica retida na ponta do axônio.",
-          badge: "4/6: Mola / Erro"
-        },
-        {
-          title: "Passo 5: Onda de Retorno do Backpropagation (A Culpa Volta!)",
-          desc: "A tensão mecânica do erro viaja em sentido contrário pelas perninhas. Cada peso recebe o gradiente ∇wᵢ = δ · xᵢ, preparando o alívio da mola.",
-          badge: "5/6: Backprop"
-        },
-        {
-          title: "Passo 6: Atualização SGD dos Pesos (A Mola Relaxa)",
-          desc: "Pela Lei de Hooke e Gradiente Descendente: w_novo = w - η · ∇w. Os valores na matriz e nas conexões são atualizados para minimizar o erro!",
-          badge: "6/6: Aprendizado"
-        }
-      ],
-      1: [
-        {
-          title: "Passo 0: Multi-Perceptron — Duas Camadas Matriciais Prontas",
-          desc: "Temos 2 entradas [x₁, x₂], uma Camada Oculta com 2 neurônios (A e B) formando a matriz W₁ (2×2), e uma Camada de Saída formando W₂ (1×2).",
-          badge: "0/6: Inicial"
-        },
-        {
-          title: "Passo 1: Propagação para a Camada Oculta (W₁ × x)",
-          desc: "Os sinais x disparam para os dois neurônios simultaneamente. Veja as linhas da matriz W₁ operando: Linha 1 para o Neurônio A, Linha 2 para o Neurônio B.",
-          badge: "1/6: Ida Camada 1"
-        },
-        {
-          title: "Passo 2: Somas de Redução dos Neurônios A e B",
-          desc: "Os núcleos da camada oculta calculam seus valores afins: z_A = w₁A·x₁ + w₂A·x₂ e z_B = w₁B·x₁ + w₂B·x₂. O vetor z₁ = [z_A, z_B] é gerado.",
-          badge: "2/6: Somas Ocultas"
-        },
-        {
-          title: "Passo 3: Ativações Ocultas e Ida para a Saída (W₂ × a₁)",
-          desc: "Os neurônios A e B aplicam ReLU e disparam seus axônios a₁ = [a_A, a_B] em direção ao neurônio de saída através do vetor W₂.",
-          badge: "3/6: Ida Camada 2"
-        },
-        {
-          title: "Passo 4: Predição Final e Tensão da Mola na Saída",
-          desc: "O neurônio de saída calcula y_pred = W₂ · a₁ + b_out e colide com o alvo real. A deformação da mola na saída é δ_out = (y_pred - alvo).",
-          badge: "4/6: Erro Saída"
-        },
-        {
-          title: "Passo 5: Backprop via Matriz Transposta (W₂ᵀ × δ_out)",
-          desc: "A MÁGICA DA FÍSICA: O erro da saída viaja de volta multiplicado pela matriz transposta W₂ᵀ! A culpa se reparte matematicamente entre os neurônios A e B.",
-          badge: "5/6: Volta Transposta"
-        },
-        {
-          title: "Passo 6: Ajuste de Todas as Matrizes (W₁ e W₂ Atualizadas)",
-          desc: "Cada elemento das matrizes W₁ e W₂ é corrigido pelo seu gradiente. Toda a treliça elástica se acomoda em um estado de menor energia de erro!",
-          badge: "6/6: Treliça Calibrada"
-        }
-      ],
-      2: [
-        {
-          title: "Passo 0: Grid 2×2 Achatado em Vetor Coluna (Flatten)",
-          desc: "A imagem 2×2 com 4 pixels é lida e desenrolada em um vetor 1D: x = [p₁, p₂, p₃, p₄]ᵀ. A matriz de pesos W (1×4) e o bias b aguardam o sinal.",
-          badge: "0/6: Flatten"
-        },
-        {
-          title: "Passo 1: Os 4 Pixels Disparam pelos Fios Sinápticos",
-          desc: "Pulsos elétricos partem dos 4 pixels pelas perninhas. Cada pixel é multiplicado pelo seu peso sináptico: p₁·w₁, p₂·w₂, p₃·w₃ e p₄·w₄.",
-          badge: "1/6: Impulsos"
-        },
-        {
-          title: "Passo 2: Soma Ponderada no Núcleo do Detector (z = W·x + b)",
-          desc: "O neurônio soma todas as contribuições dos pixels mais o bias b. Repare: na horizontal, o peso inibitório w₂ negativo cancela o pixel w₁ positivo!",
-          badge: "2/6: Soma Afim"
-        },
-        {
-          title: "Passo 3: A Comporta da ReLU (O Teste do Dying ReLU)",
-          desc: "Se z > 0, o detector dispara! Se z ≤ 0 (como quando o bias era -0.5 e os pesos eram pequenos), o neurônio bate na parede do zero e adormece.",
-          badge: "3/6: Teste ReLU"
-        },
-        {
-          title: "Passo 4: Medição da Perda (Detector vs Gabarito)",
-          desc: "Se a imagem for a Diagonal Principal, o gabarito é 1.0 (detecção esperada). Se for horizontal, preta ou outra, o gabarito é 0.0.",
-          badge: "4/6: Alvo vs Predição"
-        },
-        {
-          title: "Passo 5: Onda de Backprop nos 4 Pesos (∇w = δ · xᵀ)",
-          desc: "O erro δ volta pelos 4 fios sinápticos. Cada peso recebe o gradiente correspondente ao seu pixel: se o pixel estava aceso (1.0), o peso sente o puxão!",
-          badge: "5/6: Gradientes dos Pesos"
-        },
-        {
-          title: "Passo 6: Atualização SGD dos 4 Pesos e do Bias",
-          desc: "Os pesos W e o bias b são atualizados. Observe como o peso w₂ fica inibitório para agir como extintor de retas horizontais!",
-          badge: "6/6: Pesos Especializados"
-        }
-      ]
-    };
+const fmt = (v, d = 2) => {
+  const t = (Math.abs(v) < 0.5 * Math.pow(10, -d) ? 0 : v).toFixed(d);
+  return t.replace("-", "−");
+};
+// Gradientes e derivadas: "0" só quando é exatamente 0; valores minúsculos aparecem em notação
+// científica (assim "quase zero" da tanh/logística não é confundido com o zero exato da ReLU).
+const fmtG = (v) => {
+  if (v === 0) return "0";
+  if (Math.abs(v) < 0.01) return v.toExponential(1).replace(/-/g, "−");
+  return fmt(v);
+};
+const fmtD = (v) => (v === 0 ? "0" : (v === 1 ? "1" : (v < 0.01 ? v.toExponential(1).replace(/-/g, "−") : v.toFixed(3))));
 
-    // =========================================================================
-    // NAVEGAÇÃO E CONTROLES
-    // =========================================================================
-    function setMode(m) {
-      mode = m;
-      step = 0;
-      stopPlay();
+// ---- ativações -----------------------------------------------------------
+const OPCOES_OCULTA = [["relu", "ReLU"], ["tanh", "tanh"], ["sigmoid", "logística (sigmoide)"]];
+const OPCOES_SAIDA = [["relu", "ReLU"], ["tanh", "tanh"], ["sigmoid", "logística (sigmoide)"], ["linear", "linear (sem ativação)"]];
+const nomeAtivDaCamada = (l) => Motor.ATIVACOES[Motor.ativacaoDaCamada(E.rede, l)].nome;
+const modoDaCamada = (l) => Motor.ativacaoDaCamada(E.rede, l);
+const FORMULA_DERIVADA = {
+  relu: "ReLU'(z) = 1 se z > 0, senão 0",
+  tanh: "tanh'(z) = 1 − tanh²(z)",
+  sigmoid: "σ'(z) = σ(z)·(1 − σ(z))",
+  linear: "f'(z) = 1",
+};
 
-      for (let i = 0; i <= 2; i++) {
-        const tab = document.getElementById(`tab-${i}`);
-        if (i === m) {
-          tab.className = "px-3 py-1.5 text-xs font-bold rounded-md transition-all bg-blue-600 text-white shadow";
-        } else {
-          tab.className = "px-3 py-1.5 text-xs font-bold rounded-md transition-all text-slate-400 hover:text-white";
-        }
+function el(tag, attrs, ...filhos) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v !== undefined && v !== null) e.setAttribute(k, v);
+  }
+  for (const f of filhos) e.append(f);
+  return e;
+}
+const NS = "http://www.w3.org/2000/svg";
+function sv(tag, attrs, texto) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+  if (texto !== undefined) e.textContent = texto;
+  return e;
+}
+
+// =============================================================================
+// CARREGAR UM MODO
+// =============================================================================
+function carregarModo(nome) {
+  pararAuto();
+  const m = MODOS[nome];
+  E.modo = nome;
+  E.rede = Motor.criarRede(m.camadas, m.saida, m.W, m.b, m.ativOculta || "relu");
+  E.x = m.x.slice();
+  E.y = m.y;
+  E.lr = m.lr;
+  E.fase = 0;
+  E.historico = [];
+  E.passos = 0;
+  E.treinarEm = nome === "detector" ? "todas" : "atual";
+  E.imagem = "diag";
+  E.ultimaInfo = "";
+  construirAbas();
+  construirControles();
+  construirSvg();
+  construirMatrizes();
+  construirFases();
+  atualizar();
+}
+
+function resetar() { carregarModo(E.modo); }
+
+// Troca a função de ativação. Mantém pesos, entradas e alvo; zera o histórico (a perda muda de forma).
+function mudarAtivacao({ oculta, saida }) {
+  pararAuto();
+  if (oculta) E.rede.ativacaoOculta = oculta;
+  if (saida) E.rede.ativacaoSaida = saida;
+  E.historico = [];
+  E.passos = 0;
+  E.ultimaInfo = "Função de ativação trocada: o gráfico da perda recomeçou.";
+  ajustarParaFaixas();
+  aplicarFaixas();
+  construirSvg();
+  construirMatrizes();
+  atualizar();
+}
+
+// Sorteia W e b entre −1 e 1 (2 casas). Mantém entradas, alvo e taxa; zera o histórico do treino.
+function sortearPesos() {
+  pararAuto();
+  const sorteio = () => Math.round((Math.random() * 2 - 1) * 100) / 100;
+  const sortearTudo = () => {
+    E.rede.W.forEach((Wl) => Wl.forEach((linha) => linha.forEach((_, j, arr) => { arr[j] = sorteio(); })));
+    E.rede.b.forEach((bl) => bl.forEach((_, i, arr) => { arr[i] = sorteio(); }));
+  };
+  const todosVivos = () => Motor.avancar(E.rede, E.x).viva.every((camada) => camada.every(Boolean));
+  let msg = "Pesos e vieses sorteados entre −1 e 1.";
+  if (E.sorteioVivo) {
+    let tentativas = 0;
+    do { sortearTudo(); tentativas++; } while (!todosVivos() && tentativas < 500);
+    msg = todosVivos()
+      ? `Pesos sorteados entre −1 e 1, com todos os neurônios vivos para esta entrada (${tentativas} tentativa${tentativas > 1 ? "s" : ""}).`
+      : "Pesos sorteados entre −1 e 1, mas não achei um sorteio com todos os neurônios vivos em 500 tentativas.";
+  } else {
+    sortearTudo();
+  }
+  E.historico = [];
+  E.passos = 0;
+  E.ultimaInfo = msg;
+  atualizar();
+}
+
+// =============================================================================
+// ABAS, FASES E CONTROLES
+// =============================================================================
+function construirAbas() {
+  const nav = document.getElementById("abas");
+  nav.replaceChildren(...Object.entries(MODOS).map(([k, m]) =>
+    el("button", { type: "button", "aria-pressed": String(k === E.modo), onclick: () => carregarModo(k) }, m.aba)));
+}
+
+const FASES = [
+  "Visão geral", "1. Ida (forward)", "2. Perda", "3. Volta (culpa)", "4. Atualizar",
+];
+function construirFases() {
+  const box = document.getElementById("fases");
+  box.replaceChildren(...FASES.map((nome, i) =>
+    el("button", { type: "button", "aria-pressed": String(i === E.fase), onclick: () => { E.fase = i; atualizar(); } }, nome)));
+}
+
+function campo(rotulo, min, max, passo, valor, aoMudar, casas = 2) {
+  const out = el("output", {}, fmt(valor, casas));
+  const inp = el("input", { type: "range", min, max, step: passo, value: valor, "aria-label": rotulo });
+  inp.addEventListener("input", () => { const v = parseFloat(inp.value); out.textContent = fmt(v, casas); aoMudar(v); atualizar(); });
+  const lab = el("label", { class: "campo" }, el("span", {}, rotulo), inp, out);
+  lab._sync = (v) => { inp.value = v; out.textContent = fmt(v, casas); };
+  // Muda a faixa da barra (usado quando a ativação escolhida pede outra escala).
+  lab._faixa = (mn, mx, ps, c) => { inp.min = mn; inp.max = mx; inp.step = ps; casas = c; };
+  return lab;
+}
+
+// =============================================================================
+// FAIXAS DAS BARRAS POR ATIVAÇÃO
+// tanh e logística só ficam "vivas" para |z| pequeno (tanh: |z| < 1,8; logística: |z| < 3,6), e a saída
+// delas é limitada (tanh: −1 a 1; logística: 0 a 1). ReLU e linear aceitam qualquer escala.
+// =============================================================================
+const ehSuave = (k) => k === "tanh" || k === "sigmoid";
+
+function faixasPorAtivacao() {
+  const m = MODOS[E.modo];
+  const ativEntrada = modoDaCamada(0);                       // ativação da 1ª camada, que recebe x
+  const ativSaida = modoDaCamada(E.rede.W.length - 1);
+  const fx = m.pixels ? null
+    : (ehSuave(ativEntrada) ? { min: -3, max: 3, passo: 0.1, casas: 1 } : { min: 0, max: m.xMax, passo: 0.5, casas: 1 });
+  let fy;
+  if (m.pixels) fy = { min: 0, max: m.yMax, passo: 1, casas: 1 };
+  else if (ativSaida === "sigmoid") fy = { min: 0, max: 1, passo: 0.05, casas: 2 };
+  else if (ativSaida === "tanh") fy = { min: -1, max: 1, passo: 0.05, casas: 2 };
+  else fy = { min: m.yMin !== undefined ? m.yMin : 0, max: m.yMax, passo: m.yPasso !== undefined ? m.yPasso : 0.5, casas: 1 };
+  return { fx, fy };
+}
+
+const limitar = (v, mn, mx) => Math.min(mx, Math.max(mn, v));
+
+// Puxa as entradas e o alvo atuais para dentro das faixas da ativação escolhida.
+function ajustarParaFaixas() {
+  const { fx, fy } = faixasPorAtivacao();
+  if (fx) E.x = E.x.map((v) => limitar(v, fx.min, fx.max));
+  E.y = limitar(E.y, fy.min, fy.max);
+}
+
+function aplicarFaixas() {
+  const { fx, fy } = faixasPorAtivacao();
+  if (fx) refs.camposX.forEach((c) => c._faixa(fx.min, fx.max, fx.passo, fx.casas));
+  refs.campoY._faixa(fy.min, fy.max, fy.passo, fy.casas);
+}
+
+function construirControles() {
+  const m = MODOS[E.modo];
+  const box = document.getElementById("controles");
+  const itens = [];
+  refs.camposX = [];
+  refs.pixels = [];
+
+  itens.push(el("p", { class: "nota", style: "margin:0" }, m.dica));
+
+  // ---- escolha da função de ativação ----
+  const temOculta = E.rede.camadas.length > 2;
+  const seletor = (rotulo, id, opcoes, valor, aoMudar) => {
+    const s = el("select", { id, "aria-label": rotulo });
+    opcoes.forEach(([v, nome]) => {
+      const o = el("option", { value: v }, nome);
+      if (v === valor) o.selected = true;
+      s.append(o);
+    });
+    s.addEventListener("change", () => aoMudar(s.value));
+    return el("label", { class: "sel" }, el("span", {}, rotulo), s);
+  };
+  if (temOculta) {
+    itens.push(seletor("Ativação das ocultas", "sel-oculta", OPCOES_OCULTA, E.rede.ativacaoOculta,
+      (v) => mudarAtivacao({ oculta: v })));
+  }
+  itens.push(seletor(temOculta ? "Ativação da saída" : "Ativação do neurônio", "sel-saida", OPCOES_SAIDA,
+    E.rede.ativacaoSaida, (v) => mudarAtivacao({ saida: v })));
+  itens.push(el("p", { class: "nota", id: "dica-ativ", style: "margin:0", "aria-live": "polite" }));
+
+  if (m.pixels) {
+    const grade = el("div", { id: "pixels", role: "group", "aria-label": "Pixels da imagem 2×2" });
+    for (let j = 0; j < 4; j++) {
+      const b = el("button", { type: "button", onclick: () => { E.x[j] = E.x[j] ? 0 : 1; E.imagem = "livre"; atualizar(); } });
+      refs.pixels.push(b);
+      grade.append(b);
+    }
+    itens.push(el("div", { class: "linha" }, grade,
+      el("div", { class: "grupo-botoes", role: "group", "aria-label": "Imagens prontas" },
+        ...Object.entries(IMAGENS).map(([k, im]) =>
+          el("button", { type: "button", "data-img": k, onclick: () => { E.imagem = k; E.x = im.x.slice(); E.y = im.y; atualizar(); } }, im.nome)))));
+    itens.push(el("div", { class: "grupo-botoes", role: "group", "aria-label": "Pesos iniciais" },
+      ...Object.entries(PESOS_DETECTOR).map(([k, p]) =>
+        el("button", { type: "button", onclick: () => { E.rede.W[0][0] = p.W.slice(); E.rede.b[0][0] = p.b; E.historico = []; E.passos = 0; E.ultimaInfo = ""; atualizar(); } }, p.nome))));
+    itens.push(el("div", { class: "grupo-botoes", role: "group", "aria-label": "O que treinar" },
+      el("button", { type: "button", "data-trein": "todas", onclick: () => { E.treinarEm = "todas"; atualizar(); } }, "Treinar nas 4 imagens"),
+      el("button", { type: "button", "data-trein": "atual", onclick: () => { E.treinarEm = "atual"; atualizar(); } }, "Treinar só na imagem atual")));
+  } else {
+    m.nomesEntrada.forEach((nome, j) => {
+      const c = campo(nome, 0, m.xMax, 0.5, E.x[j], (v) => { E.x[j] = v; }, 1);
+      refs.camposX.push(c);
+      itens.push(c);
+    });
+  }
+
+  const yMin = m.yMin !== undefined ? m.yMin : 0;
+  const yPasso = m.yPasso !== undefined ? m.yPasso : (m.pixels ? 1 : 0.5);
+  refs.campoY = campo("alvo y", yMin, m.yMax, yPasso, E.y, (v) => { E.y = v; E.imagem = "livre"; }, 1);
+  refs.campoLr = campo("η (taxa)", 0.001, m.pixels ? 1 : 0.5, 0.001, E.lr, (v) => { E.lr = v; }, 3);
+  itens.push(refs.campoY, refs.campoLr);
+  aplicarFaixas();
+
+  refs.btnAuto = el("button", { type: "button", onclick: alternarAuto }, "▶ Auto");
+  itens.push(el("div", { class: "linha" },
+    el("button", { type: "button", class: "destaque", onclick: () => { passo(1); } }, "Aplicar 1 passo"),
+    el("button", { type: "button", onclick: () => passo(20) }, "Treinar 20 passos"),
+    refs.btnAuto,
+    el("button", { type: "button", onclick: resetar }, "Reiniciar"),
+    el("button", { type: "button", id: "btn-sortear", onclick: sortearPesos, title: "Pesos e vieses novos, sorteados entre −1 e 1" }, "🎲 Sortear pesos")));
+  const cbVivo = el("input", { type: "checkbox", id: "tg-sorteio-vivo" });
+  cbVivo.checked = E.sorteioVivo;
+  cbVivo.addEventListener("change", () => { E.sorteioVivo = cbVivo.checked; });
+  itens.push(el("label", { class: "nota", style: "display:flex; gap:8px; align-items:center; cursor:pointer; margin:0;" },
+    cbVivo, el("span", {}, "O sorteio garante neurônios vivos (tenta até 500 vezes). Desligado, a ReLU nasce morta em cerca de metade dos sorteios.")));
+  itens.push(el("p", { class: "nota", id: "info-passo", style: "margin:0", "aria-live": "polite" }));
+  box.replaceChildren(...itens);
+}
+
+// =============================================================================
+// DIAGRAMA SVG
+// =============================================================================
+function posicoes() {
+  const cs = E.rede.camadas;
+  const n = cs.length;
+  return cs.map((q, l) => Array.from({ length: q }, (_, i) => ({
+    x: 70 + l * (540 / (n - 1)),
+    y: 205 + (i - (q - 1) / 2) * 76,
+  })));
+}
+
+const Y_DUMMY = 32;
+const COR_VIES = "#fbbf24";
+
+function modosEmUso() {
+  return [...new Set(E.rede.W.map((_, l) => modoDaCamada(l)))];
+}
+
+function textoLegendaRede() {
+  const usaRelu = modosEmUso().includes("relu");
+  const usaSuave = modosEmUso().some((k) => k === "tanh" || k === "sigmoid");
+  return "Fio azul: peso positivo. Fio rosa: peso negativo. Quanto mais grosso, maior o valor. " +
+    (E.dummy ? "Fio âmbar: o viés b, que sai do nó +1 (entrada fixa) de cada camada. " : "") +
+    "Neurônio com borda verde está vivo. " +
+    (usaRelu ? "Tracejado e cinza: morto (ReLU com z ≤ 0, gradiente exatamente 0). " : "") +
+    (usaSuave ? "Tracejado e âmbar: saturado (tanh ou logística com derivada abaixo de 10% do máximo: gradiente minúsculo, mas não zero)." : "");
+}
+
+function textoConvencao() {
+  const deriv = modosEmUso().map((k) => FORMULA_DERIVADA[k]).join("; ");
+  return (E.dummy
+    ? "Convenção: a primeira coluna de cada matriz é o viés b, ligado a uma entrada fixa 1 (o \"dummy +1\" da seção 2.1 da metodologia): z = [b | W] · [1 ; a]. "
+    : "Convenção: com o dummy oculto, o viés b aparece como um vetor separado: z = W · a + b. ") +
+    "Perda: ½ · (a − y)². Derivada usada: " + deriv + ".";
+}
+
+function construirSvg() {
+  const svg = document.getElementById("svg");
+  svg.replaceChildren();
+  const P = posicoes();
+  const cs = E.rede.camadas;
+  const m = MODOS[E.modo];
+  refs.arestas = [];
+  refs.rotArestas = [];
+  refs.nos = [];
+  refs.arestasB = [];
+  refs.rotB = [];
+  document.getElementById("leg-rede").textContent = textoLegendaRede();
+
+  const gArestas = sv("g");
+  const gRot = sv("g");
+  const gNos = sv("g");
+  svg.append(gArestas, gRot, gNos);
+
+  // ---- nós "+1" (um por camada) e fios do viés ----
+  if (E.dummy) {
+    for (let l = 0; l < E.rede.W.length; l++) {
+      refs.arestasB[l] = [];
+      refs.rotB[l] = [];
+      const ax = P[l][0].x;
+      for (let i = 0; i < cs[l + 1]; i++) {
+        const b = P[l + 1][i];
+        const linha = sv("line", { x1: ax, y1: Y_DUMMY, x2: b.x, y2: b.y, "stroke-linecap": "round" });
+        gArestas.append(linha);
+        refs.arestasB[l][i] = linha;
+        const rot = sv("text", {
+          x: ax + (b.x - ax) * 0.62, y: Y_DUMMY + (b.y - Y_DUMMY) * 0.62 - 4,
+          "text-anchor": "middle", "font-size": 12, fill: COR_VIES, class: "halo",
+        }, "");
+        gRot.append(rot);
+        refs.rotB[l][i] = rot;
       }
-      render();
+      const g = sv("g", { transform: `translate(${ax},${Y_DUMMY})`, class: "no-dummy" });
+      g.append(
+        sv("circle", { r: 17, "stroke-width": 2.5, stroke: COR_VIES, fill: "#2b2410" }),
+        sv("text", { y: 5, "text-anchor": "middle", "font-size": 13, "font-weight": 700, fill: "#fde68a" }, "+1"),
+      );
+      gNos.append(g);
     }
+  }
 
-    function prevStep() {
-      if (step > 0) {
-        step--;
-        render();
+  for (let l = 0; l < E.rede.W.length; l++) {
+    refs.arestas[l] = [];
+    refs.rotArestas[l] = [];
+    for (let i = 0; i < cs[l + 1]; i++) {
+      refs.arestas[l][i] = [];
+      refs.rotArestas[l][i] = [];
+      for (let j = 0; j < cs[l]; j++) {
+        const a = P[l][j], b = P[l + 1][i];
+        const linha = sv("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, "stroke-linecap": "round" });
+        gArestas.append(linha);
+        refs.arestas[l][i][j] = linha;
+        const t = cs[l] === 1 ? 0.5 : 0.33;
+        const r = sv("text", { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t - 4, "text-anchor": "middle", "font-size": 12, fill: "#e2e8f0", class: "halo" }, "");
+        gRot.append(r);
+        refs.rotArestas[l][i][j] = r;
       }
     }
+  }
 
-    function nextStep() {
-      if (step < 6) {
-        step++;
-        render();
-      } else {
-        stopPlay();
+  for (let l = 0; l < cs.length; l++) {
+    refs.nos[l] = [];
+    for (let i = 0; i < cs[l]; i++) {
+      const p = P[l][i];
+      const g = sv("g", { transform: `translate(${p.x},${p.y})` });
+      const c = sv("circle", { r: 22, "stroke-width": 2.5 });
+      const valor = sv("text", { y: 5, "text-anchor": "middle", "font-size": 13, "font-weight": 700, fill: "#e2e8f0", class: "valor" }, "");
+      const linha1 = sv("text", { y: 38, "text-anchor": "middle", "font-size": 11.5, fill: "#cbd5e1" }, "");
+      const linha2 = sv("text", { y: 51, "text-anchor": "middle", "font-size": 11.5, fill: "#cbd5e1" }, "");
+      g.append(c, valor, linha1, linha2);
+      // Entradas: o nome fica em cima do círculo. Neurônios: o nome vai na 1ª linha de baixo ("A: z = 4.00"),
+      // assim não colide com o neurônio de cima.
+      if (l === 0) {
+        g.append(sv("text", { y: -29, "text-anchor": "middle", "font-size": 12, fill: "#94a3b8" }, m.nomesEntrada[i]));
+      }
+      gNos.append(g);
+      refs.nos[l][i] = { g, c, valor, linha1, linha2, nome: l === 0 ? "" : m.nomesNeuronios[l - 1][i] };
+    }
+  }
+  const sai = P[cs.length - 1][0];
+  refs.alvoTxt = sv("text", { x: sai.x + 36, y: sai.y + 4, "font-size": 13, fill: "#fbbf24", "font-weight": 600 }, "");
+  svg.append(refs.alvoTxt);
+}
+
+// =============================================================================
+// MATRIZES
+// =============================================================================
+function mat(linhas, colunas, fabrica, extra) {
+  const box = el("div", { class: "mat" + (extra ? " " + extra : "") });
+  box.style.gridTemplateColumns = `repeat(${colunas}, auto)`;
+  const celulas = [];
+  for (let i = 0; i < linhas; i++) {
+    celulas[i] = [];
+    for (let j = 0; j < colunas; j++) {
+      const c = fabrica(i, j);
+      box.append(c);
+      celulas[i][j] = c;
+    }
+  }
+  return { box, celulas };
+}
+const saida = (classe) => () => el("span", { class: "cel " + (classe || "") }, "");
+function entrada(rotulo, aoMudar, classe) {
+  return () => {
+    const inp = el("input", { type: "number", step: "0.05", "aria-label": rotulo, class: "cel " + (classe || "") });
+    inp.addEventListener("input", () => { const v = parseFloat(inp.value); if (!Number.isNaN(v)) { aoMudar(v); atualizar(); } });
+    return inp;
+  };
+}
+const op = (t) => el("span", { class: "op", "aria-hidden": "true" }, t);
+
+function construirMatrizes() {
+  const grade = document.getElementById("grade-camadas");
+  grade.replaceChildren();
+  grade.parentElement.dataset.foco = "0";
+  const cs = E.rede.camadas;
+  const m = MODOS[E.modo];
+  refs.M = [];
+  const editarX = !m.pixels;
+
+  for (let l = 0; l < E.rede.W.length; l++) {
+    const nOut = cs[l + 1], nIn = cs[l];
+    const R = (refs.M[l] = {});
+    const nomes = m.nomesNeuronios[l];
+    const rotuloCamada = l === E.rede.W.length - 1 ? `Camada ${l + 1} (saída)` : `Camada ${l + 1} (oculta)`;
+    const camada = el("div", { class: "camada" }, el("h3", {}, rotuloCamada));
+
+    const celulaW = (i, j) => entrada(`peso da camada ${l + 1}, ${nomes[i]}, entrada ${j + 1}`, (v) => { E.rede.W[l][i][j] = v; })();
+    const celulaB = (i) => entrada(`viés b da camada ${l + 1}, ${nomes[i]}`, (v) => { E.rede.b[l][i] = v; }, "vies")();
+    const celulaA = (j) => (l === 0 && editarX
+      ? entrada(`entrada ${j + 1}`, (v) => { E.x[j] = v; })()
+      : el("span", { class: "cel" }, ""));
+    const vazia = (ehVies) => () => el("span", { class: "cel" + (ehVies ? " vies" : "") }, "");
+    const nomeAtiv = nomeAtivDaCamada(l);
+    const textoCulpa = l === E.rede.W.length - 1 ? "culpa recebida = a − y" : "culpa recebida = W_seguinteᵀ · δ_seguinte";
+
+    // ---- Grupo 1: ida --------------------------------------------------------
+    const zM = mat(nOut, 1, saida());
+    const aM = mat(nOut, 1, saida());
+    R.z = zM.celulas.map((f) => f[0]);
+    R.a = aM.celulas.map((f) => f[0]);
+    let g1;
+    if (E.dummy) {
+      // Coordenadas homogêneas: o viés é a coluna 0 de [b | W], multiplicada pela entrada fixa 1.
+      const bW = mat(nOut, nIn + 1, (i, j) => (j === 0 ? celulaB(i) : celulaW(i, j - 1)));
+      const vEnt = mat(nIn + 1, 1, (i) => (i === 0 ? el("span", { class: "cel vies" }, "1") : celulaA(i - 1)));
+      R.b = bW.celulas.map((f) => f[0]);
+      R.W = bW.celulas.map((f) => f.slice(1));
+      R.aprev = vEnt.celulas.slice(1).map((f) => f[0]);
+      g1 = el("div", { class: "grupo", "data-g": "1" },
+        el("div", { class: "rotulo" }, "Ida: z = [b | W] · [1 ; a_anterior]  e  a = " + nomeAtiv + "(z)"),
+        bW.box, op("·"), vEnt.box, op("="), zM.box, op("→"), aM.box);
+    } else {
+      const Wm = mat(nOut, nIn, celulaW);
+      const bV = mat(nOut, 1, (i) => celulaB(i));
+      const vEnt = mat(nIn, 1, (j) => celulaA(j));
+      R.b = bV.celulas.map((f) => f[0]);
+      R.W = Wm.celulas;
+      R.aprev = vEnt.celulas.map((f) => f[0]);
+      g1 = el("div", { class: "grupo", "data-g": "1" },
+        el("div", { class: "rotulo" }, "Ida: z = W · a_anterior + b  e  a = " + nomeAtiv + "(z)"),
+        Wm.box, op("·"), vEnt.box, op("+"), bV.box, op("="), zM.box, op("→"), aM.box);
+    }
+    camada.append(g1);
+
+    // ---- Grupo 3: volta ------------------------------------------------------
+    const culpaM = mat(nOut, 1, saida());
+    const rdM = mat(nOut, 1, saida());
+    const dM = mat(nOut, 1, saida());
+    R.culpa = culpaM.celulas.map((f) => f[0]);
+    R.rd = rdM.celulas.map((f) => f[0]);
+    R.d = dM.celulas.map((f) => f[0]);
+    let g3;
+    if (E.dummy) {
+      const gBW = mat(nOut, nIn + 1, (i, j) => vazia(j === 0)());
+      R.gb = gBW.celulas.map((f) => f[0]);
+      R.gW = gBW.celulas.map((f) => f.slice(1));
+      g3 = el("div", { class: "grupo", "data-g": "3" },
+        el("div", { class: "rotulo" }, "Volta: δ = (culpa recebida) ⊙ f'(z)  e  ∇[b | W] = δ · [1 ; a_anterior]ᵀ"),
+        el("div", { class: "rotulo" }, textoCulpa),
+        culpaM.box, op("⊙"), rdM.box, op("="), dM.box, op("→"), gBW.box);
+    } else {
+      const gWm = mat(nOut, nIn, vazia(false));
+      const gbV = mat(nOut, 1, vazia(true));
+      R.gb = gbV.celulas.map((f) => f[0]);
+      R.gW = gWm.celulas;
+      g3 = el("div", { class: "grupo", "data-g": "3" },
+        el("div", { class: "rotulo" }, "Volta: δ = (culpa recebida) ⊙ f'(z),  ∇W = δ · a_anteriorᵀ  e  ∇b = δ"),
+        el("div", { class: "rotulo" }, textoCulpa),
+        culpaM.box, op("⊙"), rdM.box, op("="), dM.box, op("→"), gWm.box, op(","), gbV.box);
+    }
+    camada.append(g3);
+
+    // ---- Grupo 4: atualização ------------------------------------------------
+    let g4;
+    if (E.dummy) {
+      const nova = mat(nOut, nIn + 1, (i, j) => vazia(j === 0)());
+      R.nb = nova.celulas.map((f) => f[0]);
+      R.nW = nova.celulas.map((f) => f.slice(1));
+      g4 = el("div", { class: "grupo", "data-g": "4" },
+        el("div", { class: "rotulo" }, "Atualização: [b | W]novo = [b | W] − η · ∇[b | W]"),
+        nova.box);
+    } else {
+      const nW = mat(nOut, nIn, vazia(false));
+      const nb = mat(nOut, 1, vazia(true));
+      R.nb = nb.celulas.map((f) => f[0]);
+      R.nW = nW.celulas;
+      g4 = el("div", { class: "grupo", "data-g": "4" },
+        el("div", { class: "rotulo" }, "Atualização: Wnovo = W − η · ∇W  e  bnovo = b − η · ∇b"),
+        nW.box, op(","), nb.box);
+    }
+    camada.append(g4);
+    grade.append(camada);
+  }
+  document.getElementById("nota-conv").textContent = textoConvencao();
+}
+
+// =============================================================================
+// ATUALIZAR TUDO (sem recriar os controles, para o arrasto e a digitação não se perderem)
+// =============================================================================
+function setNum(inp, v) {
+  if (document.activeElement === inp) return;
+  inp.value = Number.isFinite(v) ? String(+v.toFixed(4)) : "";
+}
+
+function atualizar() {
+  const rede = E.rede;
+  const cs = rede.camadas;
+  const L = rede.W.length;
+  const r = Motor.retropropagar(rede, E.x, [E.y]);
+  const f = r.frente;
+  const m = MODOS[E.modo];
+
+  document.getElementById("grade-camadas").parentElement.dataset.foco = String(E.fase);
+  document.querySelectorAll("#fases button").forEach((b, i) => b.setAttribute("aria-pressed", String(i === E.fase)));
+  document.querySelectorAll("#abas button").forEach((b, i) => b.setAttribute("aria-pressed", String(Object.keys(MODOS)[i] === E.modo)));
+
+  // ---- controles ----
+  refs.camposX.forEach((c, j) => c._sync(E.x[j]));
+  refs.campoY._sync(E.y);
+  refs.campoLr._sync(E.lr);
+  refs.pixels.forEach((b, j) => {
+    b.textContent = `${m.nomesEntrada[j]} = ${E.x[j]}`;
+    b.classList.toggle("aceso", !!E.x[j]);
+    b.setAttribute("aria-pressed", String(!!E.x[j]));
+  });
+  document.querySelectorAll("[data-img]").forEach((b) => b.classList.toggle("ativo", b.dataset.img === E.imagem));
+  document.querySelectorAll("[data-trein]").forEach((b) => b.classList.toggle("ativo", b.dataset.trein === E.treinarEm));
+  document.getElementById("info-passo").textContent =
+    `Passos aplicados: ${E.passos}. ${E.ultimaInfo}`;
+
+  // ---- diagrama ----
+  const eNovo = (l, i, j) => (j === null ? rede.b[l][i] - E.lr * r.gb[l][i] : rede.W[l][i][j] - E.lr * r.gW[l][i][j]);
+  for (let l = 0; l < L; l++) {
+    for (let i = 0; i < cs[l + 1]; i++) {
+      const morta = !f.viva[l][i];
+      const ehRelu = modoDaCamada(l) === "relu";
+      // ReLU morta: gradiente exatamente 0 (fio cinza). tanh/logística saturada: fio âmbar, valor minúsculo mas real.
+      const corBloq = ehRelu ? "#475569" : "#a16207";
+      for (let j = 0; j < cs[l]; j++) {
+        const w = rede.W[l][i][j];
+        const linha = refs.arestas[l][i][j];
+        const bloqueada = E.fase >= 3 && morta;
+        linha.setAttribute("stroke", bloqueada ? corBloq : (w > 0 ? "#60a5fa" : (w < 0 ? "#fb7185" : "#64748b")));
+        linha.setAttribute("stroke-width", (1.5 + Math.min(7, Math.abs(w) * 2.5)).toFixed(2));
+        linha.setAttribute("stroke-dasharray", bloqueada ? "5 5" : "none");
+        linha.setAttribute("opacity", E.fase >= 3 && morta ? 0.7 : 1);
+        const rot = refs.rotArestas[l][i][j];
+        if (E.fase === 3) rot.textContent = bloqueada && ehRelu ? "∇ 0 (×0)" : `∇ ${fmtG(r.gW[l][i][j])}`;
+        else if (E.fase === 4) rot.textContent = `${fmt(w)} → ${fmt(eNovo(l, i, j))}`;
+        else rot.textContent = fmt(w);
+      }
+      // fio do viés: sai do nó +1 da camada (só quando o dummy está visível)
+      if (E.dummy) {
+        const b = rede.b[l][i];
+        const linhaB = refs.arestasB[l][i];
+        const bloqueadaB = E.fase >= 3 && morta;
+        linhaB.setAttribute("stroke", bloqueadaB ? corBloq : (b > 0 ? COR_VIES : (b < 0 ? "#fb7185" : "#64748b")));
+        linhaB.setAttribute("stroke-width", (1.5 + Math.min(7, Math.abs(b) * 2.5)).toFixed(2));
+        linhaB.setAttribute("stroke-dasharray", bloqueadaB ? "5 5" : "none");
+        linhaB.setAttribute("opacity", bloqueadaB ? 0.7 : 1);
+        const rotB = refs.rotB[l][i];
+        if (E.fase === 3) rotB.textContent = bloqueadaB && ehRelu ? "∇b 0 (×0)" : `∇b ${fmtG(r.gb[l][i])}`;
+        else if (E.fase === 4) rotB.textContent = `b ${fmt(b)} → ${fmt(eNovo(l, i, null))}`;
+        else rotB.textContent = `b ${fmt(b)}`;
       }
     }
-
-    function goToStep(s) {
-      step = s;
-      render();
+  }
+  for (let l = 0; l < cs.length; l++) {
+    for (let i = 0; i < cs[l]; i++) {
+      const n = refs.nos[l][i];
+      if (l === 0) {
+        n.g.setAttribute("class", "no-entrada");
+        n.valor.textContent = fmt(E.x[i], m.pixels ? 0 : 1);
+        n.linha1.textContent = "";
+        n.linha2.textContent = "";
+        continue;
+      }
+      const k = l - 1;
+      const viva = f.viva[k][i];
+      const ehReluN = modoDaCamada(k) === "relu";
+      n.g.setAttribute("class", viva ? "no-vivo" : (ehReluN ? "no-morto" : "no-saturado"));
+      n.valor.textContent = fmt(f.a[l][i]);
+      n.linha1.textContent = `${n.nome}: z = ${fmt(f.z[k][i])}` + (viva ? "" : (ehReluN ? " (≤ 0)" : " (saturado)"));
+      if (E.fase === 3) n.linha2.textContent = `δ = ${fmtG(r.delta[k][i])}`;
+      else if (E.dummy) n.linha2.textContent = "";
+      else n.linha2.textContent = E.fase === 4 ? `b: ${fmt(rede.b[k][i])} → ${fmt(eNovo(k, i, null))}` : `b = ${fmt(rede.b[k][i])}`;
     }
+  }
+  refs.alvoTxt.textContent = `alvo y = ${fmt(E.y, 1)}`;
 
-    function resetSim() {
-      step = 0;
-      stopPlay();
-      render();
-    }
-
-    function togglePlay() {
-      if (isPlaying) {
-        stopPlay();
-      } else {
-        isPlaying = true;
-        document.getElementById("play-icon").innerText = "⏸ Pausar";
-        document.getElementById("btn-play").className = "px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-bold text-white shadow transition flex items-center gap-1";
-        
-        playTimer = setInterval(() => {
-          if (step < 6) {
-            step++;
-            render();
-          } else {
-            step = 0;
-            render();
-          }
-        }, 1900);
+  // ---- matrizes ----
+  for (let l = 0; l < L; l++) {
+    const R = refs.M[l];
+    for (let i = 0; i < cs[l + 1]; i++) {
+      const viva = f.viva[l][i];
+      setNum(R.b[i], rede.b[l][i]);
+      for (let j = 0; j < cs[l]; j++) setNum(R.W[i][j], rede.W[l][i][j]);
+      R.z[i].textContent = fmt(f.z[l][i]);
+      R.z[i].classList.toggle("morta", !viva && modoDaCamada(l) === "relu");
+      R.z[i].classList.toggle("fraca", !viva && modoDaCamada(l) !== "relu");
+      R.a[i].textContent = fmt(f.a[l + 1][i]);
+      const culpa = l === L - 1
+        ? f.a[l + 1][i] - E.y
+        : rede.W[l + 1].reduce((s, linha, k) => s + linha[i] * r.delta[l + 1][k], 0);
+      R.culpa[i].textContent = fmt(culpa);
+      const dz = f.deriv[l][i];                 // f'(z): 0 ou 1 na ReLU; entre 0 e o máximo nas outras
+      R.rd[i].textContent = fmtD(dz);
+      R.rd[i].classList.toggle("zero", dz === 0);
+      R.rd[i].classList.toggle("fraca", !viva && dz !== 0);
+      R.d[i].textContent = fmtG(r.delta[l][i]);
+      R.d[i].classList.toggle("zero", r.delta[l][i] === 0);
+      R.gb[i].textContent = fmtG(r.gb[l][i]);
+      R.gb[i].classList.toggle("zero", r.gb[l][i] === 0);
+      R.nb[i].textContent = fmt(eNovo(l, i, null));
+      for (let j = 0; j < cs[l]; j++) {
+        R.gW[i][j].textContent = fmtG(r.gW[l][i][j]);
+        R.gW[i][j].classList.toggle("zero", r.gW[l][i][j] === 0);
+        R.nW[i][j].textContent = fmt(eNovo(l, i, j));
       }
     }
-
-    function stopPlay() {
-      isPlaying = false;
-      if (playTimer) clearInterval(playTimer);
-      const icon = document.getElementById("play-icon");
-      if (icon) icon.innerText = "▶ Auto";
-      const btn = document.getElementById("btn-play");
-      if (btn) btn.className = "px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow transition flex items-center gap-1";
+    // vetor de entrada da camada: a_anterior
+    for (let j = 0; j < cs[l]; j++) {
+      const cel = R.aprev[j];
+      if (cel.tagName === "INPUT") setNum(cel, E.x[j]);
+      else cel.textContent = fmt(f.a[l][j]);
     }
-
-    // =========================================================================
-    // DISPATCHER PRINCIPAL
-    // =========================================================================
-    function render() {
-      const currentScript = scripts[mode][step];
-      document.getElementById("step-badge").innerText = currentScript.badge;
-      document.getElementById("phase-title").innerHTML = `<span>${currentScript.title}</span>`;
-      document.getElementById("phase-desc").innerText = currentScript.desc;
-
-      document.getElementById("btn-prev").disabled = (step === 0);
-      document.getElementById("btn-next").disabled = (step === 6);
-
-      const dotsContainer = document.getElementById("step-dots");
-      dotsContainer.innerHTML = scripts[mode].map((_, i) => `
-        <button onclick="goToStep(${i})" title="Passo ${i}" class="w-2.5 h-2.5 rounded-full transition-all ${
-          i === step ? 'bg-blue-400 scale-125 ring-2 ring-blue-300/40' : (i < step ? 'bg-blue-600' : 'bg-slate-700')
-        }"></button>
-      `).join("");
-
-      const stage = document.getElementById("stage");
-      if (mode === 0) stage.innerHTML = renderMode0();
-      else if (mode === 1) stage.innerHTML = renderMode1();
-      else stage.innerHTML = renderMode2();
-    }
-
-    // =========================================================================
-    // MODO 0: PERCEPTRON INDIVIDUAL (DIAGRAMA SVG + MATRIZ LATEX)
-    // =========================================================================
-    function renderMode0() {
-      const p0 = pModel.w0 * pModel.x0;
-      const p1 = pModel.w1 * pModel.x1;
-      const p2 = pModel.w2 * pModel.x2;
-      const z = p0 + p1 + p2;
-
-      let a = 0;
-      if (pModel.activation === "relu") a = Math.max(0, z);
-      else if (pModel.activation === "degrau") a = (z >= 0 ? 1 : 0);
-      else a = z;
-
-      const delta = (a - pModel.target);
-      const loss = 0.5 * (delta * delta);
-
-      // Gradientes
-      const grad0 = delta * pModel.x0;
-      const grad1 = delta * pModel.x1;
-      const grad2 = delta * pModel.x2;
-
-      // Pesos atualizados no step 6
-      const new_w0 = pModel.w0 - pModel.lr * grad0;
-      const new_w1 = pModel.w1 - pModel.lr * grad1;
-      const new_w2 = pModel.w2 - pModel.lr * grad2;
-
-      const isTraveling = (step === 1);
-      const isSumming = (step >= 2);
-      const isFired = (step >= 3 && a > 0);
-      const isCompared = (step >= 4);
-      const isBackprop = (step === 5);
-      const isUpdated = (step === 6);
-
-      return `
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          
-          <!-- DIAGRAMA SVG DO PERCEPTRON (ESQUERDA) -->
-          <div class="lg:col-span-6 bg-slate-900 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between shadow-2xl">
-            <div class="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2 mb-2 font-mono">
-              <span class="text-pink-400 font-bold">Dendritos (Entradas)</span>
-              <span class="text-blue-400 font-bold">Núcleo (Σ & Ativação)</span>
-              <span class="${isCompared ? 'text-rose-400' : 'text-emerald-400'} font-bold">
-                ${isCompared ? 'Mola (Loss)' : 'Axônio (Saída)'}
-              </span>
-            </div>
-
-            <svg viewBox="0 0 520 280" class="w-full h-auto select-none">
-              <defs>
-                <filter id="glow-p-cyan" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="5" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-                <filter id="glow-p-rose" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="6" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-              </defs>
-
-              <!-- Perninhas Sinápticas -->
-              <!-- Bias w0 -->
-              <path d="M 80 50 Q 160 50, 220 120" fill="none"
-                    stroke="${isBackprop ? '#f43f5e' : '#ec4899'}"
-                    stroke-width="${Math.max(2, Math.abs(pModel.w0) * 2.2)}"
-                    stroke-dasharray="${isBackprop ? '6 4' : 'none'}" />
-              <!-- x1 w1 -->
-              <path d="M 80 140 L 220 140" fill="none"
-                    stroke="${isBackprop ? '#f43f5e' : '#38bdf8'}"
-                    stroke-width="${Math.max(2, Math.abs(pModel.w1) * 2.2)}"
-                    stroke-dasharray="${isBackprop ? '6 4' : 'none'}" />
-              <!-- x2 w2 -->
-              <path d="M 80 230 Q 160 230, 220 160" fill="none"
-                    stroke="${isBackprop ? '#f43f5e' : '#10b981'}"
-                    stroke-width="${Math.max(2, Math.abs(pModel.w2) * 2.2)}"
-                    stroke-dasharray="${isBackprop ? '6 4' : 'none'}" />
-
-              <!-- Axônio de Saída -->
-              <path d="M 320 140 L 410 140" fill="none"
-                    stroke="${isBackprop ? '#f43f5e' : (isFired ? '#38bdf8' : '#475569')}"
-                    stroke-width="${isFired || isBackprop ? '5' : '2.5'}"
-                    filter="${isBackprop ? 'url(#glow-p-rose)' : (isFired ? 'url(#glow-p-cyan)' : 'none')}" />
-
-              <!-- Mola com o Alvo -->
-              <path d="M 445 140 L 475 140" fill="none"
-                    stroke="${isCompared ? '#f43f5e' : '#334155'}"
-                    stroke-width="3" stroke-dasharray="3 3" />
-
-              <!-- Pulsos de Ida (Passo 1) -->
-              ${isTraveling ? `
-                <circle cx="140" cy="75" r="7" fill="#ec4899" class="pulse-data" />
-                <circle cx="140" cy="140" r="7" fill="#38bdf8" class="pulse-data" />
-                <circle cx="140" cy="205" r="7" fill="#10b981" class="pulse-data" />
-              ` : ''}
-
-              <!-- Pulsos de Volta (Passo 5) -->
-              ${isBackprop ? `
-                <circle cx="365" cy="140" r="8" fill="#f43f5e" class="pulse-error" />
-                <circle cx="160" cy="85" r="7" fill="#f43f5e" class="pulse-error" />
-                <circle cx="160" cy="140" r="7" fill="#f43f5e" class="pulse-error" />
-                <circle cx="160" cy="195" r="7" fill="#f43f5e" class="pulse-error" />
-              ` : ''}
-
-              <!-- Nós de Entrada -->
-              <!-- Bias x0 -->
-              <g transform="translate(55, 50)">
-                <circle r="22" fill="#831843" stroke="#ec4899" stroke-width="2.5" />
-                <text text-anchor="middle" dy="-2" font-size="9" fill="#fbcfe8" font-weight="bold">Bias x₀</text>
-                <text text-anchor="middle" dy="12" font-size="12" fill="#ffffff" font-weight="extrabold">+1.0</text>
-              </g>
-              <g transform="translate(145, 60)">
-                <rect x="-26" y="-12" width="52" height="22" rx="4" fill="#0f172a"
-                      stroke="${isUpdated ? '#10b981' : '#ec4899'}" stroke-width="2" />
-                <text text-anchor="middle" dy="3" font-size="11" fill="${isUpdated ? '#34d399' : '#f472b6'}" font-family="monospace" font-weight="bold">
-                  w₀:${isUpdated ? new_w0.toFixed(2) : pModel.w0.toFixed(1)}
-                </text>
-              </g>
-
-              <!-- x1 -->
-              <g transform="translate(55, 140)">
-                <circle r="22" fill="#0369a1" stroke="#38bdf8" stroke-width="2.5" />
-                <text text-anchor="middle" dy="-2" font-size="9" fill="#e0f2fe" font-weight="bold">x₁</text>
-                <text text-anchor="middle" dy="12" font-size="12" fill="#ffffff" font-weight="extrabold">${pModel.x1.toFixed(1)}</text>
-              </g>
-              <g transform="translate(145, 128)">
-                <rect x="-26" y="-12" width="52" height="22" rx="4" fill="#0f172a"
-                      stroke="${isUpdated ? '#10b981' : '#38bdf8'}" stroke-width="2" />
-                <text text-anchor="middle" dy="3" font-size="11" fill="${isUpdated ? '#34d399' : '#38bdf8'}" font-family="monospace" font-weight="bold">
-                  w₁:${isUpdated ? new_w1.toFixed(2) : pModel.w1.toFixed(1)}
-                </text>
-              </g>
-
-              <!-- x2 -->
-              <g transform="translate(55, 230)">
-                <circle r="22" fill="#065f46" stroke="#10b981" stroke-width="2.5" />
-                <text text-anchor="middle" dy="-2" font-size="9" fill="#d1fae5" font-weight="bold">x₂</text>
-                <text text-anchor="middle" dy="12" font-size="12" fill="#ffffff" font-weight="extrabold">${pModel.x2.toFixed(1)}</text>
-              </g>
-              <g transform="translate(145, 212)">
-                <rect x="-26" y="-12" width="52" height="22" rx="4" fill="#0f172a"
-                      stroke="${isUpdated ? '#10b981' : '#10b981'}" stroke-width="2" />
-                <text text-anchor="middle" dy="3" font-size="11" fill="${isUpdated ? '#34d399' : '#34d399'}" font-family="monospace" font-weight="bold">
-                  w₂:${isUpdated ? new_w2.toFixed(2) : pModel.w2.toFixed(1)}
-                </text>
-              </g>
-
-              <!-- Núcleo Celular (Σ e ReLU) -->
-              <g transform="translate(270, 140)">
-                ${isFired ? '<circle r="52" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.6" filter="url(#glow-p-cyan)" />' : ''}
-                <circle r="46" fill="#1e293b" stroke="${isFired ? '#38bdf8' : (isSumming ? '#94a3b8' : '#475569')}" stroke-width="3" />
-                <line x1="0" y1="-46" x2="0" y2="46" stroke="#334155" stroke-width="2" stroke-dasharray="3 3" />
-
-                <!-- Σ -->
-                <text text-anchor="middle" x="-22" y="-12" font-size="16" fill="#94a3b8" font-weight="bold">Σ</text>
-                <text text-anchor="middle" x="-22" y="5" font-size="9" fill="#64748b">soma afim</text>
-                <text text-anchor="middle" x="-22" y="22" font-size="12" fill="${isSumming ? (z >= 0 ? '#38bdf8' : '#f87171') : '#475569'}" font-family="monospace" font-weight="extrabold">
-                  ${isSumming ? z.toFixed(2) : '?'}
-                </text>
-
-                <!-- ReLU -->
-                <text text-anchor="middle" x="22" y="-12" font-size="11" fill="#a855f7" font-weight="bold">ReLU</text>
-                <text text-anchor="middle" x="22" y="5" font-size="9" fill="#64748b">gatilho</text>
-                <text text-anchor="middle" x="22" y="22" font-size="12" fill="${step >= 3 ? (a > 0 ? '#4ade80' : '#f87171') : '#475569'}" font-family="monospace" font-weight="extrabold">
-                  ${step >= 3 ? a.toFixed(2) : '?'}
-                </text>
-              </g>
-
-              <!-- Axônio Saída -->
-              <g transform="translate(425, 140)">
-                <circle r="20" fill="${step >= 3 && isFired ? '#0284c7' : '#1e293b'}"
-                        stroke="${step >= 3 && isFired ? '#38bdf8' : '#475569'}" stroke-width="2.5" />
-                <text text-anchor="middle" dy="-2" font-size="8" fill="#e2e8f0" font-weight="bold">Saída a</text>
-                <text text-anchor="middle" dy="11" font-size="12" fill="#ffffff" font-weight="extrabold">
-                  ${step >= 3 ? a.toFixed(2) : '?'}
-                </text>
-              </g>
-
-              <!-- Alvo Real -->
-              <g transform="translate(490, 140)">
-                <circle r="18" fill="#064e3b" stroke="#10b981" stroke-width="2" />
-                <text text-anchor="middle" dy="-2" font-size="8" fill="#a7f3d0" font-weight="bold">Alvo y</text>
-                <text text-anchor="middle" dy="10" font-size="11" fill="#ffffff" font-weight="extrabold">${pModel.target.toFixed(1)}</text>
-              </g>
-            </svg>
-
-            <!-- Status do Neurônio -->
-            <div class="mt-2 p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between text-xs font-mono">
-              <span class="text-slate-400">Estado Celular:</span>
-              <span class="${isFired ? 'text-emerald-400 font-bold' : (step >= 3 ? 'text-rose-400 font-bold' : 'text-slate-500')}">
-                ${step < 3 ? 'Aguardando estimulação...' : (isFired ? '⚡ Neurônio DISPAROU (Ativo)' : '🛑 Inativo / Bloqueado na ReLU')}
-              </span>
-            </div>
-          </div>
-
-          <!-- NOTAÇÃO MATRICIAL LATEX PAREADA (DIREITA) -->
-          <div class="lg:col-span-6 space-y-4">
-            
-            <!-- CARD 1: AS MATRIZES COM COLCHETES [ ... ] -->
-            <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-4 space-y-3 shadow-lg">
-              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-300">
-                  📐 Notação Matricial em LaTeX (Equação Afim)
-                </span>
-                <span class="text-xs text-blue-400 font-mono">z = wᵀ · x</span>
-              </div>
-
-              <!-- Matrizes com Colchetes LaTeX -->
-              <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 flex flex-wrap items-center justify-center gap-3 overflow-x-auto text-sm">
-                
-                <span class="text-slate-400 font-bold">z =</span>
-
-                <!-- Vetor Linha w^T -->
-                <div class="flex flex-col items-center">
-                  <span class="text-[10px] text-slate-400 mb-0.5">Vetor Linha (wᵀ)</span>
-                  <div class="latex-mat ${step === 1 ? 'latex-mat-active' : ''} bg-slate-900 gap-3">
-                    <span class="text-pink-400 font-bold ${isUpdated ? 'underline' : ''}">
-                      ${isUpdated ? new_w0.toFixed(2) : pModel.w0.toFixed(1)}
-                    </span>
-                    <span class="text-blue-400 font-bold ${isUpdated ? 'underline' : ''}">
-                      ${isUpdated ? new_w1.toFixed(2) : pModel.w1.toFixed(1)}
-                    </span>
-                    <span class="text-emerald-400 font-bold ${isUpdated ? 'underline' : ''}">
-                      ${isUpdated ? new_w2.toFixed(2) : pModel.w2.toFixed(1)}
-                    </span>
-                  </div>
-                  <div class="flex gap-4 text-[9px] text-slate-500 mt-1 font-mono">
-                    <span class="text-pink-400">w₀(bias)</span>
-                    <span class="text-blue-400">w₁</span>
-                    <span class="text-emerald-400">w₂</span>
-                  </div>
-                </div>
-
-                <span class="text-slate-400 font-bold text-lg">·</span>
-
-                <!-- Vetor Coluna x -->
-                <div class="flex flex-col items-center">
-                  <span class="text-[10px] text-slate-400 mb-0.5">Vetor Coluna (x)</span>
-                  <div class="latex-mat ${step === 1 ? 'latex-mat-active' : ''} bg-slate-900 flex-col gap-1">
-                    <span class="text-pink-300 font-bold">+1.0</span>
-                    <span class="text-blue-300 font-bold">${pModel.x1.toFixed(1)}</span>
-                    <span class="text-emerald-300 font-bold">${pModel.x2.toFixed(1)}</span>
-                  </div>
-                  <div class="text-[9px] text-slate-500 mt-1 font-mono">
-                    <span>x₀, x₁, x₂</span>
-                  </div>
-                </div>
-
-                <span class="text-slate-400 font-bold text-lg">=</span>
-
-                <!-- Resultado Escalar z -->
-                <div class="flex flex-col items-center">
-                  <span class="text-[10px] text-slate-400 mb-0.5">Escalar z</span>
-                  <div class="latex-mat ${step >= 2 ? 'latex-mat-active' : ''} bg-slate-900">
-                    <span class="${step >= 2 ? (z >= 0 ? 'text-cyan-400' : 'text-rose-400') : 'text-slate-500'} font-bold">
-                      ${step >= 2 ? z.toFixed(2) : '?'}
-                    </span>
-                  </div>
-                </div>
-
-              </div>
-
-              <!-- Expansão Par a Par -->
-              <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-xs font-mono space-y-1">
-                <span class="text-slate-400 text-[11px] font-sans font-bold block">Multiplicação Termo a Termo:</span>
-                <div class="text-slate-300">
-                  z = (<span class="text-pink-400 font-bold">${pModel.w0.toFixed(1)} × 1.0</span>) + 
-                      (<span class="text-blue-400 font-bold">${pModel.w1.toFixed(1)} × ${pModel.x1.toFixed(1)}</span>) + 
-                      (<span class="text-emerald-400 font-bold">${pModel.w2.toFixed(1)} × ${pModel.x2.toFixed(1)}</span>)
-                </div>
-                <div class="text-slate-300">
-                  z = (<span class="text-pink-400 font-bold">${p0.toFixed(2)}</span>) + 
-                      (<span class="text-blue-400 font-bold">${p1.toFixed(2)}</span>) + 
-                      (<span class="text-emerald-400 font-bold">${p2.toFixed(2)}</span>) = 
-                      <span class="${z >= 0 ? 'text-cyan-400' : 'text-rose-400'} font-extrabold">${step >= 2 ? z.toFixed(2) : '?'}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- CARD 2: BACKPROPAGATION COM O VETOR DE GRADIENTE ∇w -->
-            <div class="bg-slate-900 border ${step >= 4 ? 'border-rose-500/40 bg-rose-950/10' : 'border-slate-800'} rounded-xl p-4 space-y-3 font-mono text-xs shadow-lg">
-              <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                <span class="font-sans font-bold ${step >= 4 ? 'text-rose-400' : 'text-slate-400'}">
-                  🪝 A Deformação da Mola (Erro δ):
-                </span>
-                <span class="font-bold ${step >= 4 ? 'text-rose-300' : 'text-slate-500'}">
-                  δ = (${step >= 3 ? a.toFixed(2) : '?'} - ${pModel.target.toFixed(1)}) = ${step >= 4 ? delta.toFixed(2) : '?'}
-                </span>
-              </div>
-
-              <!-- Vetor de Gradientes LaTeX -->
-              <div>
-                <span class="text-slate-400 font-sans text-[11px] font-bold block mb-1.5">
-                  Vetor de Gradientes (∇w = δ · xᵀ) que volta no Backpropagation:
-                </span>
-                <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-center gap-3">
-                  <span class="text-rose-400 font-bold">∇w =</span>
-                  <div class="latex-mat ${step >= 5 ? 'latex-mat-error' : ''} bg-slate-900 gap-3">
-                    <span class="text-pink-400 font-bold">${step >= 5 ? grad0.toFixed(2) : '—'}</span>
-                    <span class="text-blue-400 font-bold">${step >= 5 ? grad1.toFixed(2) : '—'}</span>
-                    <span class="text-emerald-400 font-bold">${step >= 5 ? grad2.toFixed(2) : '—'}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Atualização SGD -->
-              ${step === 6 ? `
-                <div class="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 font-sans text-xs">
-                  ✨ <strong>Pesos Atualizados (SGD):</strong> w_novo = w - η · ∇w<br>
-                  w₀: <strong>${new_w0.toFixed(2)}</strong> | 
-                  w₁: <strong>${new_w1.toFixed(2)}</strong> | 
-                  w₂: <strong>${new_w2.toFixed(2)}</strong>
-                </div>
-              ` : ''}
-            </div>
-
-            <!-- CARD 3: CONTROLES INTERATIVOS -->
-            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2 text-xs font-mono">
-              <span class="text-slate-400 font-sans font-bold uppercase tracking-wider block text-[11px]">
-                🎛️ Modificar Valores de Teste:
-              </span>
-              <div class="grid grid-cols-3 gap-2">
-                <div>
-                  <label class="text-blue-400 font-bold block mb-0.5">x₁: ${pModel.x1.toFixed(1)}</label>
-                  <input type="range" min="0" max="4" step="0.5" value="${pModel.x1}" 
-                         oninput="pModel.x1=parseFloat(this.value); render();" class="w-full h-1.5 bg-slate-700 rounded">
-                </div>
-                <div>
-                  <label class="text-emerald-400 font-bold block mb-0.5">x₂: ${pModel.x2.toFixed(1)}</label>
-                  <input type="range" min="0" max="4" step="0.5" value="${pModel.x2}" 
-                         oninput="pModel.x2=parseFloat(this.value); render();" class="w-full h-1.5 bg-slate-700 rounded">
-                </div>
-                <div>
-                  <label class="text-rose-400 font-bold block mb-0.5">Alvo y: ${pModel.target.toFixed(1)}</label>
-                  <input type="range" min="0" max="5" step="0.5" value="${pModel.target}" 
-                         oninput="pModel.target=parseFloat(this.value); render();" class="w-full h-1.5 bg-slate-700 rounded">
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      `;
-    }
-
-    // =========================================================================
-    // MODO 1: MULTI-PERCEPTRON (2 CAMADAS: SVG COMPLETO + MATRIZES LATEX)
-    // =========================================================================
-    function renderMode1() {
-      // Forward Camada 1
-      const zA = mModel.w1A * mModel.x1 + mModel.w2A * mModel.x2 + mModel.bA;
-      const zB = mModel.w1B * mModel.x1 + mModel.w2B * mModel.x2 + mModel.bB;
-      const aA = Math.max(0, zA);
-      const aB = Math.max(0, zB);
-
-      // Forward Camada 2
-      const y_pred = mModel.wOutA * aA + mModel.wOutB * aB + mModel.bOut;
-
-      // Erro e Backprop
-      const deltaOut = (y_pred - mModel.target);
-      // Culpa voltando para os neurônios ocultos via Matriz Transposta W2^T
-      const deltaA = mModel.wOutA * deltaOut;
-      const deltaB = mModel.wOutB * deltaOut;
-
-      // Gradientes das Matrizes
-      const grad_wOutA = deltaOut * aA;
-      const grad_wOutB = deltaOut * aB;
-      const grad_w1A = deltaA * mModel.x1;
-      const grad_w2A = deltaA * mModel.x2;
-      const grad_w1B = deltaB * mModel.x1;
-      const grad_w2B = deltaB * mModel.x2;
-
-      // Pesos novos no step 6
-      const new_w1A = mModel.w1A - mModel.lr * grad_w1A;
-      const new_w2A = mModel.w2A - mModel.lr * grad_w2A;
-      const new_w1B = mModel.w1B - mModel.lr * grad_w1B;
-      const new_w2B = mModel.w2B - mModel.lr * grad_w2B;
-      const new_wOutA = mModel.wOutA - mModel.lr * grad_wOutA;
-      const new_wOutB = mModel.wOutB - mModel.lr * grad_wOutB;
-
-      // Estados de Animação
-      const isPulseL1 = (step === 1);
-      const isSumL1 = (step >= 2);
-      const isPulseL2 = (step === 3);
-      const isOutput = (step >= 4);
-      const isBackpropL2 = (step === 5);
-      const isUpdated = (step === 6);
-
-      return `
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          
-          <!-- DIAGRAMA SVG DA REDE COMPLETA (ESQUERDA) -->
-          <div class="lg:col-span-6 bg-slate-900 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between shadow-2xl">
-            <div class="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2 mb-2 font-mono">
-              <span class="text-blue-400 font-bold">Entradas [x₁, x₂]</span>
-              <span class="text-indigo-400 font-bold">Camada Oculta [A, B]</span>
-              <span class="text-emerald-400 font-bold">Saída [y]</span>
-            </div>
-
-            <svg viewBox="0 0 540 300" class="w-full h-auto select-none">
-              <defs>
-                <filter id="glow-m-cyan" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="5" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-                <filter id="glow-m-rose" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="6" result="blur" />
-                  <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-              </defs>
-
-              <!-- LINHAS CAMADA 1: Entrada -> Oculta -->
-              <!-- x1 -> Neurônio A -->
-              <path d="M 65 95 L 230 75" fill="none"
-                    stroke="${isBackpropL2 ? '#f43f5e' : '#818cf8'}" stroke-width="${Math.max(1.5, mModel.w1A * 2)}" 
-                    stroke-dasharray="${isBackpropL2 ? '5 3' : 'none'}" />
-              <!-- x1 -> Neurônio B -->
-              <path d="M 65 95 L 230 225" fill="none"
-                    stroke="${isBackpropL2 ? '#f43f5e' : '#fbbf24'}" stroke-width="${Math.max(1.5, mModel.w1B * 2)}" 
-                    stroke-dasharray="${isBackpropL2 ? '5 3' : 'none'}" />
-              <!-- x2 -> Neurônio A -->
-              <path d="M 65 205 L 230 75" fill="none"
-                    stroke="${isBackpropL2 ? '#f43f5e' : '#818cf8'}" stroke-width="${Math.max(1.5, mModel.w2A * 2)}" 
-                    stroke-dasharray="${isBackpropL2 ? '5 3' : 'none'}" />
-              <!-- x2 -> Neurônio B -->
-              <path d="M 65 205 L 230 225" fill="none"
-                    stroke="${isBackpropL2 ? '#f43f5e' : '#fbbf24'}" stroke-width="1.5" 
-                    stroke-dasharray="${isBackpropL2 ? '5 3' : 'none'}" />
-
-              <!-- LINHAS CAMADA 2: Oculta -> Saída -->
-              <!-- Neurônio A -> Saída -->
-              <path d="M 280 75 L 420 150" fill="none"
-                    stroke="${isBackpropL2 ? '#f43f5e' : '#10b981'}" stroke-width="${Math.max(2, mModel.wOutA * 2.5)}" 
-                    stroke-dasharray="${isBackpropL2 ? '6 4' : 'none'}" />
-              <!-- Neurônio B -> Saída -->
-              <path d="M 280 225 L 420 150" fill="none"
-                    stroke="${isBackpropL2 ? '#f43f5e' : '#10b981'}" stroke-width="${Math.max(2, mModel.wOutB * 2.5)}" 
-                    stroke-dasharray="${isBackpropL2 ? '6 4' : 'none'}" />
-
-              <!-- Conexão Saída -> Alvo (Mola) -->
-              <path d="M 455 150 L 490 150" fill="none"
-                    stroke="${isOutput ? '#f43f5e' : '#334155'}" stroke-width="3" stroke-dasharray="3 3" />
-
-              <!-- PULSOS DE DADOS: PASSO 1 (Entrada -> Oculta) -->
-              ${isPulseL1 ? `
-                <circle cx="150" cy="85" r="7" fill="#818cf8" class="pulse-data" />
-                <circle cx="150" cy="160" r="7" fill="#fbbf24" class="pulse-data" />
-                <circle cx="150" cy="140" r="7" fill="#818cf8" class="pulse-data" />
-                <circle cx="150" cy="215" r="7" fill="#fbbf24" class="pulse-data" />
-              ` : ''}
-
-              <!-- PULSOS DE DADOS: PASSO 3 (Oculta -> Saída) -->
-              ${isPulseL2 ? `
-                <circle cx="350" cy="112" r="7" fill="#10b981" class="pulse-data" />
-                <circle cx="350" cy="188" r="7" fill="#10b981" class="pulse-data" />
-              ` : ''}
-
-              <!-- ONDAS DE BACKPROP: PASSO 5 (Saída -> Oculta via W2^T) -->
-              ${isBackpropL2 ? `
-                <circle cx="350" cy="112" r="8" fill="#f43f5e" class="pulse-error" />
-                <circle cx="350" cy="188" r="8" fill="#f43f5e" class="pulse-error" />
-                <circle cx="150" cy="85" r="7" fill="#f43f5e" class="pulse-error" />
-                <circle cx="150" cy="160" r="7" fill="#f43f5e" class="pulse-error" />
-              ` : ''}
-
-              <!-- NÓS DE ENTRADA -->
-              <g transform="translate(45, 95)">
-                <circle r="20" fill="#0369a1" stroke="#38bdf8" stroke-width="2" />
-                <text text-anchor="middle" dy="-2" font-size="8" fill="#bae6fd" font-weight="bold">x₁</text>
-                <text text-anchor="middle" dy="10" font-size="11" fill="#ffffff" font-weight="extrabold">${mModel.x1.toFixed(1)}</text>
-              </g>
-              <g transform="translate(45, 205)">
-                <circle r="20" fill="#065f46" stroke="#10b981" stroke-width="2" />
-                <text text-anchor="middle" dy="-2" font-size="8" fill="#a7f3d0" font-weight="bold">x₂</text>
-                <text text-anchor="middle" dy="10" font-size="11" fill="#ffffff" font-weight="extrabold">${mModel.x2.toFixed(1)}</text>
-              </g>
-
-              <!-- NEURÔNIO A (Linha 1 de W1) -->
-              <g transform="translate(255, 75)">
-                <circle r="28" fill="#1e1b4b" stroke="#818cf8" stroke-width="${isSumL1 ? '3' : '2'}" />
-                <text text-anchor="middle" dy="-8" font-size="9" fill="#c7d2fe" font-weight="bold">Neurônio A</text>
-                <text text-anchor="middle" dy="5" font-size="8" fill="#94a3b8">z_A: ${isSumL1 ? zA.toFixed(1) : '?'}</text>
-                <text text-anchor="middle" dy="18" font-size="10" fill="#818cf8" font-weight="extrabold">a_A: ${step >= 3 ? aA.toFixed(1) : '?'}</text>
-              </g>
-
-              <!-- NEURÔNIO B (Linha 2 de W1) -->
-              <g transform="translate(255, 225)">
-                <circle r="28" fill="#451a03" stroke="#fbbf24" stroke-width="${isSumL1 ? '3' : '2'}" />
-                <text text-anchor="middle" dy="-8" font-size="9" fill="#fde68a" font-weight="bold">Neurônio B</text>
-                <text text-anchor="middle" dy="5" font-size="8" fill="#94a3b8">z_B: ${isSumL1 ? zB.toFixed(1) : '?'}</text>
-                <text text-anchor="middle" dy="18" font-size="10" fill="#fbbf24" font-weight="extrabold">a_B: ${step >= 3 ? aB.toFixed(1) : '?'}</text>
-              </g>
-
-              <!-- NEURÔNIO DE SAÍDA (W2) -->
-              <g transform="translate(435, 150)">
-                <circle r="26" fill="#064e3b" stroke="#10b981" stroke-width="${isOutput ? '3' : '2'}" />
-                <text text-anchor="middle" dy="-8" font-size="9" fill="#a7f3d0" font-weight="bold">Saída ŷ</text>
-                <text text-anchor="middle" dy="7" font-size="12" fill="#ffffff" font-weight="extrabold">
-                  ${isOutput ? y_pred.toFixed(1) : '?'}
-                </text>
-                <text text-anchor="middle" dy="19" font-size="8" fill="#6ee7b7">alvo: ${mModel.target.toFixed(0)}</text>
-              </g>
-
-              <!-- ALVO REAL -->
-              <g transform="translate(505, 150)">
-                <circle r="16" fill="#1e293b" stroke="#f43f5e" stroke-width="2" />
-                <text text-anchor="middle" dy="4" font-size="9" fill="#f43f5e" font-weight="bold">${mModel.target.toFixed(0)}</text>
-              </g>
-            </svg>
-
-            <!-- Status do Passo -->
-            <div class="mt-2 p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between text-xs font-mono">
-              <span class="text-slate-400">Fluxo da Camada:</span>
-              <span class="${step >= 4 ? 'text-emerald-400 font-bold' : 'text-slate-400'}">
-                ${step < 2 ? 'Propagando Entrada ➔ Oculta' : (step < 4 ? 'Ativações Ocultas ➔ Saída' : (step === 5 ? '⚠️ Onda de Erro voltando via W₂ᵀ' : 'Rede Concluída'))}
-              </span>
-            </div>
-          </div>
-
-          <!-- NOTAÇÃO MATRICIAL LATEX COMPLETA (DIREITA) -->
-          <div class="lg:col-span-6 space-y-4">
-            
-            <!-- CAMADA 1: A MATRIZ W1 (2x2) -->
-            <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-4 space-y-3 shadow-lg">
-              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">
-                  1. Camada Oculta: z₁ = W₁ · x
-                </span>
-                <span class="text-[11px] text-slate-400 font-mono">Matriz W₁ (2×2)</span>
-              </div>
-
-              <!-- Equação Matricial com Colchetes LaTeX -->
-              <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 flex flex-wrap items-center justify-center gap-2.5 text-xs font-mono">
-                
-                <!-- Matriz W1 -->
-                <div class="flex flex-col items-center">
-                  <span class="text-[9px] text-slate-400 mb-0.5">Matriz de Pesos W₁</span>
-                  <div class="latex-mat ${step === 1 ? 'latex-mat-active' : ''} bg-slate-900 flex-col gap-1.5">
-                    <div class="flex gap-4">
-                      <span class="text-indigo-400 font-bold">${isUpdated ? new_w1A.toFixed(1) : mModel.w1A.toFixed(1)}</span>
-                      <span class="text-indigo-400 font-bold">${isUpdated ? new_w2A.toFixed(1) : mModel.w2A.toFixed(1)}</span>
-                    </div>
-                    <div class="flex gap-4">
-                      <span class="text-amber-400 font-bold">${isUpdated ? new_w1B.toFixed(1) : mModel.w1B.toFixed(1)}</span>
-                      <span class="text-amber-400 font-bold">${isUpdated ? new_w2B.toFixed(1) : mModel.w2B.toFixed(1)}</span>
-                    </div>
-                  </div>
-                  <div class="text-[8px] text-slate-500 mt-1 flex justify-between w-full px-1">
-                    <span class="text-indigo-400">Linha A</span>
-                    <span class="text-amber-400">Linha B</span>
-                  </div>
-                </div>
-
-                <span class="text-slate-400 font-bold text-base">·</span>
-
-                <!-- Vetor x -->
-                <div class="flex flex-col items-center">
-                  <span class="text-[9px] text-slate-400 mb-0.5">Vetor x</span>
-                  <div class="latex-mat ${step === 1 ? 'latex-mat-active' : ''} bg-slate-900 flex-col gap-1">
-                    <span class="text-blue-300 font-bold">${mModel.x1.toFixed(1)}</span>
-                    <span class="text-emerald-300 font-bold">${mModel.x2.toFixed(1)}</span>
-                  </div>
-                </div>
-
-                <span class="text-slate-400 font-bold text-base">=</span>
-
-                <!-- Vetor z1 -->
-                <div class="flex flex-col items-center">
-                  <span class="text-[9px] text-slate-400 mb-0.5">Vetor z₁</span>
-                  <div class="latex-mat ${step >= 2 ? 'latex-mat-active' : ''} bg-slate-900 flex-col gap-1">
-                    <span class="text-indigo-400 font-bold">${step >= 2 ? zA.toFixed(1) : '?'}</span>
-                    <span class="text-amber-400 font-bold">${step >= 2 ? zB.toFixed(1) : '?'}</span>
-                  </div>
-                </div>
-
-                <span class="text-slate-400 font-bold text-base">➔</span>
-
-                <!-- Vetor a1 (ReLU) -->
-                <div class="flex flex-col items-center">
-                  <span class="text-[9px] text-slate-400 mb-0.5">Ativação a₁</span>
-                  <div class="latex-mat ${step >= 3 ? 'latex-mat-active' : ''} bg-slate-900 flex-col gap-1">
-                    <span class="text-indigo-300 font-extrabold">${step >= 3 ? aA.toFixed(1) : '?'}</span>
-                    <span class="text-amber-300 font-extrabold">${step >= 3 ? aB.toFixed(1) : '?'}</span>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            <!-- CAMADA 2: A MATRIZ DE SAÍDA W2 (1x2) E BACKPROP TRANSPOSTO -->
-            <div class="bg-slate-900 border ${step >= 4 ? 'border-rose-500/40 bg-rose-950/10' : 'border-slate-700/80'} rounded-xl p-4 space-y-3 shadow-lg">
-              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span class="text-xs font-bold uppercase tracking-wider ${step >= 4 ? 'text-rose-400' : 'text-emerald-400'}">
-                  2. Camada de Saída & Backpropagation Transposto
-                </span>
-                <span class="text-[11px] text-slate-400 font-mono">y_pred = W₂ · a₁</span>
-              </div>
-
-              <!-- Multiplicação da Saída -->
-              <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between text-xs font-mono">
-                <div>
-                  <span class="text-slate-400 block text-[10px]">Saída Calculada:</span>
-                  <span class="text-emerald-400 font-bold text-sm">y = ${step >= 4 ? y_pred.toFixed(1) : '?'}</span>
-                  <span class="text-slate-500 text-[10px] ml-1">(Alvo: ${mModel.target.toFixed(0)})</span>
-                </div>
-                <div class="text-right">
-                  <span class="text-slate-400 block text-[10px]">Tensão da Mola (δ_out):</span>
-                  <span class="${step >= 4 ? 'text-rose-400 font-extrabold text-sm' : 'text-slate-500'}">
-                    ${step >= 4 ? deltaOut.toFixed(1) : '?'}
-                  </span>
-                </div>
-              </div>
-
-              <!-- A MÁGICA DA MATRIZ TRANSPOSTA W2^T -->
-              <div class="p-3 bg-slate-950 rounded-lg border border-rose-500/30 space-y-2">
-                <span class="text-rose-300 font-sans font-bold block text-xs">
-                  A Culpa Volta pela Matriz Transposta (W₂ᵀ · δ_out):
-                </span>
-                
-                <div class="flex items-center justify-center gap-2.5 text-xs font-mono">
-                  <!-- Vetor Coluna W2^T -->
-                  <div class="flex flex-col items-center">
-                    <span class="text-[9px] text-slate-400">W₂ᵀ (Coluna)</span>
-                    <div class="latex-mat ${step >= 5 ? 'latex-mat-error' : ''} bg-slate-900 flex-col gap-1">
-                      <span class="text-emerald-400 font-bold">${mModel.wOutA.toFixed(1)}</span>
-                      <span class="text-emerald-400 font-bold">${mModel.wOutB.toFixed(1)}</span>
-                    </div>
-                  </div>
-
-                  <span class="text-rose-400 font-bold text-base">·</span>
-
-                  <!-- Escalar deltaOut -->
-                  <div class="flex flex-col items-center">
-                    <span class="text-[9px] text-slate-400">δ_out</span>
-                    <div class="latex-mat ${step >= 5 ? 'latex-mat-error' : ''} bg-slate-900">
-                      <span class="text-rose-400 font-bold">${step >= 5 ? deltaOut.toFixed(1) : '?'}</span>
-                    </div>
-                  </div>
-
-                  <span class="text-rose-400 font-bold text-base">=</span>
-
-                  <!-- Culpas nos neurônios Ocultos -->
-                  <div class="flex flex-col items-center">
-                    <span class="text-[9px] text-slate-400">Culpas [δ_A, δ_B]</span>
-                    <div class="latex-mat ${step >= 5 ? 'latex-mat-error' : ''} bg-slate-900 flex-col gap-1">
-                      <span class="text-indigo-300 font-bold">${step >= 5 ? deltaA.toFixed(1) : '?'}</span>
-                      <span class="text-amber-300 font-bold">${step >= 5 ? deltaB.toFixed(1) : '?'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <p class="text-[11px] text-slate-400 font-sans mt-1 text-center">
-                  A mesma conexão que combinou os sinais na ida reparte proporcionalmente a culpa na volta!
-                </p>
-              </div>
-
-              <!-- Atualização SGD -->
-              ${step === 6 ? `
-                <div class="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 font-sans text-xs">
-                  ✨ <strong>Matrizes Atualizadas com Sucesso!</strong> As tensões elásticas diminuíram em todas as conexões.
-                </div>
-              ` : ''}
-            </div>
-
-          </div>
-
-        </div>
-      `;
-    }
-
-    // =========================================================================
-    // MODO 2: DETECTOR 2x2 (PRESETS, GRID INTERATIVO, SVG E TREINO SGD AO VIVO)
-    // =========================================================================
-    function setPreset(p) {
-      dModel.preset = p;
-      if (p === "diag_principal") {
-        dModel.p1 = 1; dModel.p2 = 0; dModel.p3 = 0; dModel.p4 = 1;
-        dModel.target = 1.0;
-      } else if (p === "horiz") {
-        dModel.p1 = 1; dModel.p2 = 1; dModel.p3 = 0; dModel.p4 = 0;
-        dModel.target = 0.0;
-      } else if (p === "diag_sec") {
-        dModel.p1 = 0; dModel.p2 = 1; dModel.p3 = 1; dModel.p4 = 0;
-        dModel.target = 0.0;
-      } else if (p === "preta") {
-        dModel.p1 = 0; dModel.p2 = 0; dModel.p3 = 0; dModel.p4 = 0;
-        dModel.target = 0.0;
+  }
+
+  // ---- faixa da perda ----
+  const saidaA = f.saida[0];
+  const erro = saidaA - E.y;
+  document.getElementById("perda-faixa").innerHTML =
+    `<strong>Perda</strong> = ½ · (a − y)² = ½ · (${fmt(saidaA)} − ${fmt(E.y, 1)})² = <strong>${fmt(r.perda, 3)}</strong>` +
+    `&nbsp;&nbsp;<span class="nota">(erro a − y = ${fmt(erro)})</span>`;
+  const faixa = document.getElementById("perda-faixa");
+  faixa.dataset.g = "2";
+  faixa.style.opacity = E.fase === 0 || E.fase === 2 ? 1 : 0.45;
+  faixa.style.borderColor = E.fase === 2 ? "#fbbf24" : "";
+
+  // ---- aviso do Dying ReLU ----
+  const mortos = [], saturados = [];
+  for (let l = 0; l < L; l++) for (let i = 0; i < cs[l + 1]; i++) {
+    if (f.viva[l][i]) continue;
+    const item = { l, i, z: f.z[l][i], dz: f.deriv[l][i] };
+    (modoDaCamada(l) === "relu" ? mortos : saturados).push(item);
+  }
+  const aviso = document.getElementById("aviso");
+  const partes = [];
+  if (mortos.length) {
+    const lista = mortos.map(({ l, i, z }) => `${m.nomesNeuronios[l][i]} (z = ${fmt(z)})`).join(", ");
+    partes.push(`Neurônio morto nesta imagem: ${lista}. Como z ≤ 0, ReLU'(z) = 0 e o gradiente que chega aos pesos dele é exatamente 0. O erro existe (${fmt(r.perda, 3)}), mas esses pesos ficam parados.`);
+  }
+  if (saturados.length) {
+    const lista = saturados.map(({ l, i, z, dz }) => `${m.nomesNeuronios[l][i]} (z = ${fmt(z)}, ${nomeAtivDaCamada(l)}' = ${fmtD(dz)})`).join(", ");
+    partes.push(`Neurônio saturado: ${lista}. A curva fica quase plana longe de z = 0, então a derivada é minúscula. O gradiente não é zero, mas quase: o neurônio ainda aprende, só que bem devagar.`);
+  }
+  if (partes.length) {
+    aviso.className = "ativo";
+    aviso.textContent = partes.join(" ");
+  } else {
+    aviso.className = "ativo ok";
+    aviso.textContent = "Todos os neurônios estão vivos: a culpa chega a todos os pesos.";
+  }
+
+  // ---- dica sobre a faixa da saída ----
+  const modoSaida = modoDaCamada(L - 1);
+  const faixa2 = { sigmoid: [0, 1, "0 e 1"], tanh: [-1, 1, "−1 e 1"], relu: [0, Infinity, "0 e +∞"], linear: [-Infinity, Infinity, "−∞ e +∞"] }[modoSaida];
+  let dica = `Saída ${Motor.ATIVACOES[modoSaida].nome}: valores entre ${faixa2[2]}.`;
+  if (E.y < faixa2[0] || E.y > faixa2[1]) {
+    dica += ` O alvo y = ${fmt(E.y, 1)} está fora dessa faixa: a perda nunca chega a zero, e o neurônio empurra a saída para o limite.`;
+  }
+  if (!m.pixels && ehSuave(modoDaCamada(0))) {
+    dica += ` As entradas ficam entre −3 e 3: a ${nomeAtivDaCamada(0)} só tem derivada útil para |z| pequeno, e fora disso satura. É o mesmo motivo de normalizar o MNIST (média 0, desvio 1).`;
+  }
+  document.getElementById("dica-ativ").textContent = dica;
+
+  // ---- explicação da fase ----
+  document.getElementById("explicacao").textContent = textoFase(r);
+
+  desenharGrafico();
+}
+
+function textoFase(r) {
+  const L = E.rede.W.length;
+  const f = r.frente;
+  const z = f.z[L - 1][0], a = f.saida[0];
+  const viva = f.viva[L - 1][0];
+  const dz = f.deriv[L - 1][0];
+  const nomeSaida = nomeAtivDaCamada(L - 1);
+  const modoSaida = modoDaCamada(L - 1);
+  switch (E.fase) {
+    case 1: return `Ida: cada neurônio soma os pesos vezes as entradas mais o viés e aplica a ${nomeAtivDaCamada(0)}. Na saída, z = ${fmt(z)} e a = ${fmt(a)}.`;
+    case 2: return `Perda: a saída ${fmt(a)} é comparada com o alvo ${fmt(E.y, 1)}. O erro é ${fmt(a - E.y)} e a perda é ½ · erro² = ${fmt(r.perda, 3)}.`;
+    case 3: {
+      if (L > 1) {
+        return `Volta: o erro vira δ e volta pelos fios. Em cada camada oculta, δ = (W_seguinteᵀ · δ_seguinte) ⊙ f'(z), com f' da ${nomeAtivDaCamada(0)}. ` +
+          (modoDaCamada(0) === "relu" ? "Neurônio com z ≤ 0 recebe δ = 0." : "Neurônio saturado recebe δ minúsculo, mas não zero.");
       }
-      step = 0;
-      render();
+      const conta = `Volta: δ_saída = (a − y) · f'(z) = ${fmt(a - E.y)} · ${fmtD(dz)} = ${fmtG(r.delta[0][0])}.`;
+      if (modoSaida === "relu") return `${conta} ${viva ? "Os pesos recebem gradiente." : "A porta da ReLU está fechada: nenhum gradiente passa."}`;
+      if (modoSaida === "linear") return `${conta} Sem ativação, f' = 1: o erro passa inteiro.`;
+      return `${conta} ${viva ? "Os pesos recebem gradiente." : `A ${nomeSaida} está saturada: o gradiente é pequeno, mas não zero.`}`;
     }
+    case 4: return `Atualização: peso novo = peso − η · gradiente, com η = ${fmt(E.lr, 3)}. Clique em "Aplicar 1 passo" para gravar esses valores.`;
+    default: return "Mude qualquer valor azul, as barras ou os pixels e veja tudo recalcular. Use as fases para olhar uma etapa de cada vez.";
+  }
+}
 
-    function togglePixel(idx) {
-      if (idx === 1) dModel.p1 = dModel.p1 ? 0 : 1;
-      if (idx === 2) dModel.p2 = dModel.p2 ? 0 : 1;
-      if (idx === 3) dModel.p3 = dModel.p3 ? 0 : 1;
-      if (idx === 4) dModel.p4 = dModel.p4 ? 0 : 1;
-      dModel.preset = "personalizado";
-      render();
-    }
+// =============================================================================
+// TREINO
+// =============================================================================
+function amostrasDeTreino() {
+  if (E.modo === "detector" && E.treinarEm === "todas") {
+    return Object.values(IMAGENS).map((im) => ({ x: im.x.slice(), y: [im.y] }));
+  }
+  return [{ x: E.x.slice(), y: [E.y] }];
+}
 
-    function resetWeightsToy() {
-      // Volta para o estado inicial manual antes do treino (com Dying ReLU para testar)
-      dModel.w1 = 0.10;
-      dModel.w2 = 0.10;
-      dModel.w3 = 0.10;
-      dModel.w4 = 0.10;
-      dModel.b = -0.50;
-      step = 0;
-      render();
-    }
+function passo(n) {
+  let mudou = false;
+  for (let k = 0; k < n; k++) {
+    const info = Motor.aplicarPasso(E.rede, amostrasDeTreino(), E.lr);
+    E.historico.push(info.perda);
+    E.passos++;
+    if (info.mudou) mudou = true;
+  }
+  E.ultimaInfo = mudou
+    ? ""
+    : "Nenhum peso mudou: todos os gradientes foram 0 (neurônio morto).";
+  atualizar();
+}
 
-    function applyJupyterLearnedWeights() {
-      // Aplica os pesos aprendidos no Jupyter!
-      dModel.w1 = 0.315;
-      dModel.w2 = -0.320;
-      dModel.w3 = 0.038;
-      dModel.w4 = 0.674;
-      dModel.b = 0.006;
-      step = 0;
-      render();
-    }
+function alternarAuto() {
+  if (E.timer) { pararAuto(); return; }
+  refs.btnAuto.textContent = "⏸ Pausar";
+  E.timer = setInterval(() => { passo(1); if (E.passos >= 400) pararAuto(); }, 120);
+}
+function pararAuto() {
+  if (E.timer) clearInterval(E.timer);
+  E.timer = null;
+  if (refs.btnAuto) refs.btnAuto.textContent = "▶ Auto";
+}
 
-    function renderMode2() {
-      const p1 = dModel.p1, p2 = dModel.p2, p3 = dModel.p3, p4 = dModel.p4;
+// =============================================================================
+// GRÁFICO DA PERDA
+// =============================================================================
+function desenharGrafico() {
+  const svg = document.getElementById("grafico");
+  svg.replaceChildren();
+  const h = E.historico.slice(-400);
+  const leg = document.getElementById("leg-grafico");
+  if (h.length === 0) {
+    svg.append(sv("text", { x: 340, y: 80, "text-anchor": "middle", fill: "#94a3b8", "font-size": 14 }, "Aplique passos para ver a perda mudar."));
+    leg.textContent = "";
+    return;
+  }
+  const W = 680, H = 150, pad = 34;
+  const max = Math.max(...h, 1e-9);
+  const px = (i) => pad + (h.length === 1 ? 0 : (i / (h.length - 1)) * (W - 2 * pad));
+  const py = (v) => H - pad / 2 - (v / max) * (H - pad - 8);
+  svg.append(sv("line", { x1: pad, y1: H - pad / 2, x2: W - pad, y2: H - pad / 2, stroke: "#475569" }));
+  svg.append(sv("line", { x1: pad, y1: 8, x2: pad, y2: H - pad / 2, stroke: "#475569" }));
+  svg.append(sv("text", { x: 4, y: 16, fill: "#94a3b8", "font-size": 11 }, fmt(max, 3)));
+  svg.append(sv("text", { x: 4, y: H - 12, fill: "#94a3b8", "font-size": 11 }, "0"));
+  const pontos = h.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(" ");
+  svg.append(sv("polyline", { points: pontos, fill: "none", stroke: "#fbbf24", "stroke-width": 2.5 }));
+  const ult = h[h.length - 1];
+  svg.append(sv("circle", { cx: px(h.length - 1), cy: py(ult), r: 4, fill: "#fbbf24" }));
+  const parado = h.length > 5 && h.slice(-5).every((v) => v === h[h.length - 1]);
+  leg.textContent = `Perda no último passo: ${fmt(ult, 4)} (${h.length} passos no gráfico).` +
+    (parado ? " A curva está reta: nada está sendo aprendido." : "");
+}
 
-      const z = (dModel.w1 * p1) + (dModel.w2 * p2) + (dModel.w3 * p3) + (dModel.w4 * p4) + dModel.b;
-      const a = Math.max(0, z);
-      const delta = (a - dModel.target);
-      const loss = 0.5 * (delta * delta);
+document.getElementById("tg-dummy").addEventListener("change", (ev) => {
+  E.dummy = ev.target.checked;
+  construirSvg();
+  construirMatrizes();
+  atualizar();
+});
 
-      // Gradientes
-      const grad1 = delta * p1;
-      const grad2 = delta * p2;
-      const grad3 = delta * p3;
-      const grad4 = delta * p4;
-      const grad_b = delta * 1.0;
-
-      // Pesos atualizados no step 6
-      const new_w1 = dModel.w1 - dModel.lr * grad1;
-      const new_w2 = dModel.w2 - dModel.lr * grad2;
-      const new_w3 = dModel.w3 - dModel.lr * grad3;
-      const new_w4 = dModel.w4 - dModel.lr * grad4;
-      const new_b  = dModel.b - dModel.lr * grad_b;
-
-      const isTraveling = (step === 1);
-      const isSumming = (step >= 2);
-      const isFired = (step >= 3 && a > 0);
-      const isDying = (step >= 3 && z <= 0);
-      const isCompared = (step >= 4);
-      const isBackprop = (step === 5);
-      const isUpdated = (step === 6);
-
-      return `
-        <div class="space-y-4">
-          
-          <!-- BARRA SUPERIOR: PRESETS DE IMAGENS E CONTROLE DE PESOS DO JUPYTER -->
-          <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-3 flex-wrap shadow-lg">
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">Imagem 2×2:</span>
-              <button onclick="setPreset('diag_principal')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${dModel.preset === 'diag_principal' ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:text-white'}">
-                Diagonal (\\) [Alvo: 1.0]
-              </button>
-              <button onclick="setPreset('horiz')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${dModel.preset === 'horiz' ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:text-white'}">
-                Horizontal (-) [Alvo: 0.0]
-              </button>
-              <button onclick="setPreset('diag_sec')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${dModel.preset === 'diag_sec' ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:text-white'}">
-                Anti-Diagonal (/) [Alvo: 0.0]
-              </button>
-              <button onclick="setPreset('preta')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition ${dModel.preset === 'preta' ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:text-white'}">
-                Tudo Preto [Alvo: 0.0]
-              </button>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <button onclick="resetWeightsToy()" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-950/60 hover:bg-rose-900 border border-rose-500/40 text-rose-300 transition" title="Pesos iniciais w=0.1, b=-0.5 que causam Dying ReLU">
-                Pesos Iniciais (Dying ReLU)
-              </button>
-              <button onclick="applyJupyterLearnedWeights()" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow transition" title="Aplica os pesos aprendidos no Jupyter!">
-                ⭐ Pesos do Jupyter
-              </button>
-            </div>
-          </div>
-
-          <!-- GRID PRINCIPAL DO DETECTOR 2x2 -->
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-            
-            <!-- ESQUERDA: SVG COM O GRID 2x2 CONECTADO AO NEURÔNIO -->
-            <div class="lg:col-span-6 bg-slate-900 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between shadow-2xl">
-              <div class="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2 mb-2 font-mono">
-                <span class="text-blue-400 font-bold">Grid 2×2 (Clique nos Pixels)</span>
-                <span class="text-indigo-400 font-bold">Detector (Filtro)</span>
-                <span class="${isCompared ? 'text-rose-400' : 'text-emerald-400'} font-bold">
-                  ${isCompared ? 'Alvo vs Predição' : 'Saída'}
-                </span>
-              </div>
-
-              <svg viewBox="0 0 540 300" class="w-full h-auto select-none">
-                <defs>
-                  <filter id="glow-d-cyan" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="5" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
-                  <filter id="glow-d-rose" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="6" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
-                </defs>
-
-                <!-- CONEXÕES DOS 4 PIXELS AO NEURÔNIO CENTRAL -->
-                <!-- Pixel 1 (Topo Esquerdo) -->
-                <path d="M 85 70 Q 180 70, 270 140" fill="none"
-                      stroke="${isBackprop ? '#f43f5e' : '#38bdf8'}" 
-                      stroke-width="${p1 ? Math.max(2, Math.abs(dModel.w1) * 6) : '1.5'}"
-                      stroke-dasharray="${isBackprop ? '5 3' : 'none'}" opacity="${p1 ? '1' : '0.3'}" />
-
-                <!-- Pixel 2 (Topo Direito - O EXTINTOR/INIBIDOR!) -->
-                <path d="M 145 70 Q 200 80, 270 140" fill="none"
-                      stroke="${isBackprop ? '#f43f5e' : (dModel.w2 < 0 ? '#ef4444' : '#10b981')}" 
-                      stroke-width="${p2 ? Math.max(2, Math.abs(dModel.w2) * 6) : '1.5'}"
-                      stroke-dasharray="${dModel.w2 < 0 ? '4 3' : (isBackprop ? '5 3' : 'none')}" opacity="${p2 ? '1' : '0.3'}" />
-
-                <!-- Pixel 3 (Baixo Esquerdo) -->
-                <path d="M 85 130 Q 180 150, 270 150" fill="none"
-                      stroke="${isBackprop ? '#f43f5e' : '#f59e0b'}" 
-                      stroke-width="${p3 ? Math.max(2, Math.abs(dModel.w3) * 6) : '1.5'}"
-                      stroke-dasharray="${isBackprop ? '5 3' : 'none'}" opacity="${p3 ? '1' : '0.3'}" />
-
-                <!-- Pixel 4 (Baixo Direito) -->
-                <path d="M 145 130 Q 210 160, 270 150" fill="none"
-                      stroke="${isBackprop ? '#f43f5e' : '#a855f7'}" 
-                      stroke-width="${p4 ? Math.max(2, Math.abs(dModel.w4) * 6) : '1.5'}"
-                      stroke-dasharray="${isBackprop ? '5 3' : 'none'}" opacity="${p4 ? '1' : '0.3'}" />
-
-                <!-- Perninha do Bias -->
-                <path d="M 115 220 Q 200 220, 270 170" fill="none"
-                      stroke="${isBackprop ? '#f43f5e' : '#ec4899'}" stroke-width="2" stroke-dasharray="2 2" />
-
-                <!-- Axônio Saída -->
-                <path d="M 370 150 L 440 150" fill="none"
-                      stroke="${isBackprop ? '#f43f5e' : (isFired ? '#38bdf8' : '#475569')}"
-                      stroke-width="${isFired ? '5' : '2.5'}"
-                      filter="${isFired ? 'url(#glow-d-cyan)' : 'none'}" />
-
-                <!-- Mola com Alvo -->
-                <path d="M 465 150 L 490 150" fill="none"
-                      stroke="${isCompared ? '#f43f5e' : '#334155'}" stroke-width="3" stroke-dasharray="3 3" />
-
-                <!-- PULSOS DE ENTRADA (Passo 1) -->
-                ${isTraveling ? `
-                  ${p1 ? '<circle cx="170" cy="95" r="7" fill="#38bdf8" class="pulse-data" />' : ''}
-                  ${p2 ? '<circle cx="205" cy="100" r="7" fill="#ef4444" class="pulse-data" />' : ''}
-                  ${p3 ? '<circle cx="175" cy="142" r="7" fill="#f59e0b" class="pulse-data" />' : ''}
-                  ${p4 ? '<circle cx="210" cy="145" r="7" fill="#a855f7" class="pulse-data" />' : ''}
-                  <circle cx="190" cy="205" r="5" fill="#ec4899" class="pulse-data" />
-                ` : ''}
-
-                <!-- ONDA DE RETORNO DO BACKPROP (Passo 5) -->
-                ${isBackprop ? `
-                  <circle cx="400" cy="150" r="8" fill="#f43f5e" class="pulse-error" />
-                  <circle cx="180" cy="100" r="6" fill="#f43f5e" class="pulse-error" />
-                  <circle cx="180" cy="145" r="6" fill="#f43f5e" class="pulse-error" />
-                ` : ''}
-
-                <!-- GRADE 2x2 DE PIXELS (CLICÁVEL) -->
-                <g transform="translate(55, 40)">
-                  <rect x="0" y="0" width="120" height="120" rx="10" fill="#020617" stroke="#334155" stroke-width="2" />
-                  
-                  <!-- p1 -->
-                  <g onclick="togglePixel(1)" class="cursor-pointer" transform="translate(6, 6)">
-                    <rect width="50" height="50" rx="6" fill="${p1 ? '#0284c7' : '#1e293b'}" stroke="#38bdf8" stroke-width="${p1 ? '2.5' : '1'}" />
-                    <text text-anchor="middle" x="25" y="24" font-size="10" fill="#ffffff" font-weight="bold">p₁</text>
-                    <text text-anchor="middle" x="25" y="42" font-size="14" fill="${p1 ? '#ffffff' : '#64748b'}" font-weight="extrabold">${p1}</text>
-                  </g>
-
-                  <!-- p2 -->
-                  <g onclick="togglePixel(2)" class="cursor-pointer" transform="translate(64, 6)">
-                    <rect width="50" height="50" rx="6" fill="${p2 ? '#047857' : '#1e293b'}" stroke="${dModel.w2 < 0 ? '#ef4444' : '#10b981'}" stroke-width="${p2 ? '2.5' : '1'}" />
-                    <text text-anchor="middle" x="25" y="24" font-size="10" fill="#ffffff" font-weight="bold">p₂</text>
-                    <text text-anchor="middle" x="25" y="42" font-size="14" fill="${p2 ? '#ffffff' : '#64748b'}" font-weight="extrabold">${p2}</text>
-                  </g>
-
-                  <!-- p3 -->
-                  <g onclick="togglePixel(3)" class="cursor-pointer" transform="translate(6, 64)">
-                    <rect width="50" height="50" rx="6" fill="${p3 ? '#b45309' : '#1e293b'}" stroke="#f59e0b" stroke-width="${p3 ? '2.5' : '1'}" />
-                    <text text-anchor="middle" x="25" y="24" font-size="10" fill="#ffffff" font-weight="bold">p₃</text>
-                    <text text-anchor="middle" x="25" y="42" font-size="14" fill="${p3 ? '#ffffff' : '#64748b'}" font-weight="extrabold">${p3}</text>
-                  </g>
-
-                  <!-- p4 -->
-                  <g onclick="togglePixel(4)" class="cursor-pointer" transform="translate(64, 64)">
-                    <rect width="50" height="50" rx="6" fill="${p4 ? '#7e22ce' : '#1e293b'}" stroke="#a855f7" stroke-width="${p4 ? '2.5' : '1'}" />
-                    <text text-anchor="middle" x="25" y="24" font-size="10" fill="#ffffff" font-weight="bold">p₄</text>
-                    <text text-anchor="middle" x="25" y="42" font-size="14" fill="${p4 ? '#ffffff' : '#64748b'}" font-weight="extrabold">${p4}</text>
-                  </g>
-                </g>
-
-                <!-- NÓ DO BIAS -->
-                <g transform="translate(115, 220)">
-                  <circle r="18" fill="#831843" stroke="#ec4899" stroke-width="2" />
-                  <text text-anchor="middle" dy="-2" font-size="8" fill="#fbcfe8" font-weight="bold">Bias b</text>
-                  <text text-anchor="middle" dy="9" font-size="10" fill="#ffffff" font-weight="extrabold">${dModel.b.toFixed(2)}</text>
-                </g>
-
-                <!-- NÚCLEO DO NEURÔNIO DETECTOR -->
-                <g transform="translate(320, 150)">
-                  ${isFired ? '<circle r="52" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.6" filter="url(#glow-d-cyan)" />' : ''}
-                  <circle r="46" fill="#1e293b" stroke="${isFired ? '#38bdf8' : (isDying ? '#ef4444' : '#475569')}" stroke-width="3" />
-                  <line x1="0" y1="-46" x2="0" y2="46" stroke="#334155" stroke-width="2" stroke-dasharray="3 3" />
-
-                  <!-- Lado Esquerdo: Soma z -->
-                  <text text-anchor="middle" x="-22" y="-12" font-size="14" fill="#94a3b8" font-weight="bold">Σ</text>
-                  <text text-anchor="middle" x="-22" y="4" font-size="8" fill="#64748b">soma afim</text>
-                  <text text-anchor="middle" x="-22" y="20" font-size="11" fill="${isSumming ? (z >= 0 ? '#38bdf8' : '#ef4444') : '#475569'}" font-family="monospace" font-weight="extrabold">
-                    ${isSumming ? z.toFixed(2) : '?'}
-                  </text>
-
-                  <!-- Lado Direito: Comporta ReLU -->
-                  <text text-anchor="middle" x="22" y="-12" font-size="10" fill="#a855f7" font-weight="bold">ReLU</text>
-                  <text text-anchor="middle" x="22" y="4" font-size="8" fill="#64748b">${isDying ? 'PAREDE' : 'LIVRE'}</text>
-                  <text text-anchor="middle" x="22" y="20" font-size="11" fill="${step >= 3 ? (a > 0 ? '#4ade80' : '#ef4444') : '#475569'}" font-family="monospace" font-weight="extrabold">
-                    ${step >= 3 ? a.toFixed(2) : '?'}
-                  </text>
-                </g>
-
-                <!-- AXÔNIO DE SAÍDA -->
-                <g transform="translate(450, 150)">
-                  <circle r="20" fill="${step >= 3 && isFired ? '#0284c7' : '#1e293b'}"
-                          stroke="${step >= 3 && isFired ? '#38bdf8' : '#475569'}" stroke-width="2.5" />
-                  <text text-anchor="middle" dy="-2" font-size="8" fill="#e2e8f0" font-weight="bold">Saída ŷ</text>
-                  <text text-anchor="middle" dy="11" font-size="12" fill="#ffffff" font-weight="extrabold">
-                    ${step >= 3 ? a.toFixed(2) : '?'}
-                  </text>
-                </g>
-
-                <!-- ALVO REAL -->
-                <g transform="translate(505, 150)">
-                  <circle r="18" fill="#064e3b" stroke="#10b981" stroke-width="2" />
-                  <text text-anchor="middle" dy="-2" font-size="8" fill="#a7f3d0" font-weight="bold">Alvo y</text>
-                  <text text-anchor="middle" dy="10" font-size="11" fill="#ffffff" font-weight="extrabold">${dModel.target.toFixed(1)}</text>
-                </g>
-              </svg>
-
-              <!-- Diagnóstico do Estado -->
-              <div class="mt-2 p-2 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between text-xs font-mono">
-                <span class="text-slate-400">Diagnóstico do Detector:</span>
-                <span class="${isFired ? 'text-emerald-400 font-bold' : (isDying ? 'text-rose-400 font-bold' : 'text-slate-500')}">
-                  ${step < 3 ? 'Aguardando fluxo...' : (isFired ? '⚡ DIAGONAL DETECTADA!' : '🛑 BLOQUEADO: z ≤ 0 (Dying ReLU)')}
-                </span>
-              </div>
-            </div>
-
-            <!-- DIREITA: NOTAÇÃO MATRICIAL LATEX + FLATTEN + GRADIENTES -->
-            <div class="lg:col-span-6 space-y-4">
-              
-              <!-- CARD 1: O VETOR ACHATADO (FLATTEN) E A MATRIZ DE PESOS W -->
-              <div class="bg-slate-900 border border-slate-700/80 rounded-xl p-4 space-y-3 shadow-lg">
-                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span class="text-xs font-bold uppercase tracking-wider text-slate-300">
-                    📐 Vetor Flatten 1D e Pesos em LaTeX
-                  </span>
-                  <span class="text-xs text-blue-400 font-mono">z = W · x + b</span>
-                </div>
-
-                <!-- Representação Matricial LaTeX -->
-                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 flex flex-wrap items-center justify-center gap-2.5 text-xs font-mono">
-                  
-                  <span class="text-slate-400 font-bold">z =</span>
-
-                  <!-- Vetor Linha de Pesos W (1x4) -->
-                  <div class="flex flex-col items-center">
-                    <span class="text-[9px] text-slate-400 mb-0.5">Matriz de Pesos (W)</span>
-                    <div class="latex-mat ${step === 1 ? 'latex-mat-active' : ''} bg-slate-900 gap-2.5">
-                      <span class="text-blue-400 font-bold">${isUpdated ? new_w1.toFixed(2) : dModel.w1.toFixed(2)}</span>
-                      <span class="${dModel.w2 < 0 ? 'text-rose-400' : 'text-emerald-400'} font-bold">
-                        ${isUpdated ? new_w2.toFixed(2) : dModel.w2.toFixed(2)}
-                      </span>
-                      <span class="text-amber-400 font-bold">${isUpdated ? new_w3.toFixed(2) : dModel.w3.toFixed(2)}</span>
-                      <span class="text-purple-400 font-bold">${isUpdated ? new_w4.toFixed(2) : dModel.w4.toFixed(2)}</span>
-                    </div>
-                    <div class="flex gap-3 text-[8px] text-slate-500 mt-0.5">
-                      <span>w₁</span><span>w₂</span><span>w₃</span><span>w₄</span>
-                    </div>
-                  </div>
-
-                  <span class="text-slate-400 font-bold text-base">·</span>
-
-                  <!-- Vetor Coluna x (4x1) -->
-                  <div class="flex flex-col items-center">
-                    <span class="text-[9px] text-slate-400 mb-0.5">Vetor x (Flatten)</span>
-                    <div class="latex-mat ${step === 1 ? 'latex-mat-active' : ''} bg-slate-900 flex-col gap-0.5">
-                      <span class="text-blue-300 font-bold">${p1}</span>
-                      <span class="text-emerald-300 font-bold">${p2}</span>
-                      <span class="text-amber-300 font-bold">${p3}</span>
-                      <span class="text-purple-300 font-bold">${p4}</span>
-                    </div>
-                  </div>
-
-                  <span class="text-slate-400 font-bold text-base">+</span>
-
-                  <!-- Bias b -->
-                  <div class="flex flex-col items-center">
-                    <span class="text-[9px] text-slate-400 mb-0.5">Bias b</span>
-                    <div class="latex-mat bg-slate-900">
-                      <span class="text-pink-400 font-bold">${isUpdated ? new_b.toFixed(2) : dModel.b.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  <span class="text-slate-400 font-bold text-base">=</span>
-
-                  <!-- Escalar z -->
-                  <div class="flex flex-col items-center">
-                    <span class="text-[9px] text-slate-400 mb-0.5">Escalar z</span>
-                    <div class="latex-mat ${step >= 2 ? 'latex-mat-active' : ''} bg-slate-900">
-                      <span class="${step >= 2 ? (z >= 0 ? 'text-cyan-400 font-extrabold' : 'text-rose-400 font-extrabold') : 'text-slate-500'}">
-                        ${step >= 2 ? z.toFixed(2) : '?'}
-                      </span>
-                    </div>
-                  </div>
-
-                </div>
-
-                <!-- Expansão Par a Par -->
-                <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-xs font-mono space-y-1">
-                  <div class="text-slate-300">
-                    z = (<span class="text-blue-400 font-bold">${dModel.w1.toFixed(2)} × ${p1}</span>) + 
-                        (<span class="${dModel.w2 < 0 ? 'text-rose-400' : 'text-emerald-400'} font-bold">${dModel.w2.toFixed(2)} × ${p2}</span>) + 
-                        (<span class="text-amber-400 font-bold">${dModel.w3.toFixed(2)} × ${p3}</span>) + 
-                        (<span class="text-purple-400 font-bold">${dModel.w4.toFixed(2)} × ${p4}</span>) + 
-                        (<span class="text-pink-400 font-bold">${dModel.b.toFixed(2)}</span>)
-                  </div>
-                  <div class="text-slate-300">
-                    z = ${(dModel.w1 * p1).toFixed(2)} + ${(dModel.w2 * p2).toFixed(2)} + ${(dModel.w3 * p3).toFixed(2)} + ${(dModel.w4 * p4).toFixed(2)} + ${dModel.b.toFixed(2)} = 
-                    <strong class="${z >= 0 ? 'text-cyan-400' : 'text-rose-400'}">${step >= 2 ? z.toFixed(2) : '?'}</strong> ➔ 
-                    ReLU: <strong class="${a > 0 ? 'text-emerald-400' : 'text-rose-400'}">${step >= 3 ? a.toFixed(2) : '?'}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <!-- CARD 2: BACKPROPAGATION E GRADIENTES DOS 4 PESOS -->
-              <div class="bg-slate-900 border ${step >= 4 ? 'border-rose-500/40 bg-rose-950/10' : 'border-slate-800'} rounded-xl p-4 space-y-3 font-mono text-xs shadow-lg">
-                <div class="flex justify-between items-center border-b border-slate-800 pb-2">
-                  <span class="font-sans font-bold ${step >= 4 ? 'text-rose-400' : 'text-slate-400'}">
-                    🪝 Tensão do Erro (Alvo = ${dModel.target.toFixed(1)}):
-                  </span>
-                  <span class="font-bold ${step >= 4 ? 'text-rose-300' : 'text-slate-500'}">
-                    δ = (${step >= 3 ? a.toFixed(2) : '?'} - ${dModel.target.toFixed(1)}) = ${step >= 4 ? delta.toFixed(2) : '?'}
-                  </span>
-                </div>
-
-                <!-- Vetor de Gradientes LaTeX -->
-                <div>
-                  <span class="text-slate-400 font-sans text-[11px] font-bold block mb-1.5">
-                    Gradientes que voltam para cada peso (∇W = δ · xᵀ):
-                  </span>
-                  <div class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-center gap-3">
-                    <span class="text-rose-400 font-bold">∇W =</span>
-                    <div class="latex-mat ${step >= 5 ? 'latex-mat-error' : ''} bg-slate-900 gap-3">
-                      <span class="text-blue-400 font-bold">${step >= 5 ? grad1.toFixed(2) : '—'}</span>
-                      <span class="text-emerald-400 font-bold">${step >= 5 ? grad2.toFixed(2) : '—'}</span>
-                      <span class="text-amber-400 font-bold">${step >= 5 ? grad3.toFixed(2) : '—'}</span>
-                      <span class="text-purple-400 font-bold">${step >= 5 ? grad4.toFixed(2) : '—'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Atualização SGD -->
-                ${step === 6 ? `
-                  <div class="p-2 rounded-lg bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 font-sans text-xs">
-                    ✨ <strong>Novos Pesos Após o Alívio da Mola:</strong><br>
-                    w₁: <strong>${new_w1.toFixed(3)}</strong> | 
-                    w₂: <strong>${new_w2.toFixed(3)}</strong> | 
-                    w₃: <strong>${new_w3.toFixed(3)}</strong> | 
-                    w₄: <strong>${new_w4.toFixed(3)}</strong> | 
-                    b: <strong>${new_b.toFixed(3)}</strong>
-                  </div>
-                ` : ''}
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-      `;
-    }
-
-    // Inicialização ao carregar a página
-    window.onload = function() {
-      render();
-    };
-  </script>
+carregarModo("neuronio");
+</script>
 </body>
 </html>
