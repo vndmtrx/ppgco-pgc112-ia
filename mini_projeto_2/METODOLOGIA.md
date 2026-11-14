@@ -1080,6 +1080,32 @@ Dois fatos saltam dessa tabela:
 
 ---
 
+### 4.20. Bateria Experimental da CNN (`cnn_v1`) no Padrão v5
+
+Seguindo a mesma disciplina de validação soberana do v5, escrevi [`cnn_v1_treinar.py`](cnn_v1_treinar.py), [`cnn_v1_selecionar.py`](cnn_v1_selecionar.py) e [`executar_bateria_cnn.sh`](executar_bateria_cnn.sh). O módulo [`graficos_mlp.py`](graficos_mlp.py) foi parametrizado com `prefixo_modelo="MLP"` para atender também à CNN sem duplicar código de plotagem.
+
+Como o enunciado exige SGD, montei uma bateria controlada de $4$ configurações $\times$ $3$ sementes (`1`, `2` e `3`), com teto de $30$ épocas na CPU e salvamento estrito do checkpoint de **menor perda de validação**:
+1. `-b 256 -l 0.1 -m 0.9` (*ceteris paribus* exato com o MLP campeão do v5);
+2. `-b 256 -l 0.05 -m 0.9` (redução da taxa de aprendizado para metade);
+3. `-b 256 -l 0.02 -m 0.9` (taxa mais conservadora para estabilizar o gradiente convolucional);
+4. `-b 128 -l 0.05 -m 0.9` (lote menor com taxa intermediária).
+
+#### 4.20.1. Resultados na Validação e o Colapso por *Dying ReLU* a $\eta = 0{,}1$
+
+| Configuração (lote, $\eta$, momento) | Parâmetros | Acurácia de validação | Perda de validação | Época salva (média) | Tempo médio (s) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| `b=256`, $\eta=0{,}1$, $m=0{,}9$ | $44.426$ | $69{,}30 \pm 50{,}24\%$ | $0{,}8147$ | $14{,}3$ | $97{,}0$ |
+| `b=256`, $\eta=0{,}05$, $m=0{,}9$ | $44.426$ | $98{,}39 \pm 0{,}24\%$ | $0{,}0572$ | $8{,}0$ | $84{,}5$ |
+| `b=256`, $\eta=0{,}02$, $m=0{,}9$ | $44.426$ | $\mathbf{98{,}72 \pm 0{,}02\%}$ | $\mathbf{0{,}0459}$ | $14{,}3$ | $86{,}1$ |
+| `b=128`, $\eta=0{,}05$, $m=0{,}9$ | $44.426$ | $98{,}65 \pm 0{,}29\%$ | $0{,}0560$ | $17{,}7$ | $90{,}1$ |
+
+Dois achados saltam dessa bateria:
+
+1. **O colapso físico em $\eta = 0{,}1$ (semente 3):** Enquanto as sementes `1` e `2` com $\eta = 0{,}1$ atingiram $98{,}28\%$ e $98{,}33\%$, a **semente `3` colapsou logo na época 1 para $11{,}29\%$ de acurácia e perda $2{,}3027 \approx \ln 10$**, mantendo esse chute uniforme até a época $30$. A razão física está no compartilhamento de pesos: cada filtro da `Conv1` é aplicado em $24 \times 24 = 576$ posições da imagem, somando contribuições de gradiente de todo o quadro sobre os mesmos $25$ pesos. Com $\eta = 0{,}1$ e momento $0{,}9$, um passo inicial forte na direção errada empurrou as ativações para o semiespaço negativo da ReLU, zerando os gradientes de forma irreversível (*Dying ReLU*, exatamente como observado no laboratório da seção 4.5).
+2. **Estabilidade extrema em $\eta = 0{,}02$:** Ao reduzir $\eta$ para $0{,}02$, as três sementes convergiram de forma praticamente idêntica ($98{,}73\%$, $98{,}69\%$ e $98{,}73\%$), com desvio-padrão de apenas **$0{,}02$ ponto percentual** e a menor perda média de validação ($0{,}0459$). Nota-se também o mesmo efeito de calibração da seção 4.15.4: na semente `1`, o mínimo de perda ocorre na época $11$ ($0{,}0459$ e $98{,}73\%$), mas a acurácia de validação ainda sobe até $99{,}07\%$ na época $30$ (com perda de $0{,}0576$). Mantive o critério pré-definido da menor perda na validação para preservar o protocolo.
+
+---
+
 ## 5. Log de Atividades
 
 | Data | Atividade / Marco | Decisões e Entendimentos Registrados |
@@ -1115,3 +1141,4 @@ Dois fatos saltam dessa tabela:
 | **09/11/2026 (Noite)** | Estudo dirigido: ReLU morta, saturação e escala | Reimplementação da página com treino de verdade, matrizes editáveis, dummy +1 e escolha de ativação (ReLU, tanh, logística). Medidas (`tests/estudo_dirigido_medidas.js`): a ReLU nasce morta em cerca de 50% dos sorteios; com $x$ até 20, 83% dos neurônios tanh e 68% dos logísticos saturam; alvo no limite da faixa da tanh leva 999 passos contra 40 com alvo 0,5 (seção 4.6.1). |
 | **09/11/2026 (Tarde)** | Por que o MLP ignora a estrutura espacial | Minha analogia das fitas: cortar a imagem em linhas e colar uma atrás da outra mantém a vizinhança horizontal e desfaz a vertical (seção 4.16). |
 | **13/11/2026** | Fundamentação da Convolução e LeNet (`models/cnn.py`) | Redação das Seções 4.18 e 4.19 (lupa deslizante, weight sharing e pooling) com resolução dos tropeços lógicos (ceticismo do MaxPool, geometria 3D $5\times 5\times 6$ dos filtros e armadilha do Softmax duplo). Implementação de `models/cnn.py` ($44.426$ parâmetros, $69{,}42\%$ concentrados na `fc1`) e $6$ testes estruturais aprovados em `tests/test_cnn.py`. |
+| **14/11/2026** | Bateria experimental `cnn_v1` na CPU (validação) | Execução de $12$ treinos ($4$ configs $\times$ $3$ sementes) em `executar_bateria_cnn.sh` com teste lacrado. Diagnóstico de *Dying ReLU* em $\eta = 0{,}1$ (semente 3 travada em $11{,}29\%$) e eleição pela validação de `b=256, lr=0.02, m=0.9` ($98{,}72 \pm 0{,}02\%$, perda $0{,}0459$). |

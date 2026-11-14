@@ -75,6 +75,7 @@ def salvar_graficos_treino(
     identificador: str,
     titulo: str,
     nome_perda: str,
+    prefixo_modelo: str = "MLP",
 ) -> Dict[str, Path]:
     """Salva os 5 gráficos de treino/validação em `pasta_destino` (300 DPI)."""
     pasta_destino.mkdir(parents=True, exist_ok=True)
@@ -82,7 +83,7 @@ def salvar_graficos_treino(
     acc_tr = [a * 100 for a in historico["acc_treino"]]
     acc_vl = [a * 100 for a in historico["acc_val"]]
     gap = [t - v for t, v in zip(acc_tr, acc_vl)]
-    cabecalho = f"MLP ({titulo})"
+    cabecalho = f"{prefixo_modelo} ({titulo})"
     caminhos: Dict[str, Path] = {}
 
     fig, ax = plt.subplots(figsize=(8, 5))
