@@ -1019,6 +1019,65 @@ A camada linear $\mathbf{W}\mathbf{x}$ trata cada entrada como uma coluna indepe
 
 ---
 
+### 4.18. A Convolução, o Compartilhamento de Pesos e o Pooling (Seção III.A)
+
+Na seção 4.16, deixei clara a cegueira espacial do MLP: ao achatar a matriz $28 \times 28$ em um vetor de $784$ posições, cortei a imagem em $28$ fitas horizontais e perdi a noção de vizinhança vertical e diagonal. A camada linear trata cada entrada como coluna independente e precisa de $407.050$ parâmetros (no modelo campeão do v5) para reaprender na força bruta quais pixels costumam acender juntos.
+
+A Rede Neural Convolucional (CNN) resolve esse problema mantendo a imagem no plano 2D e substituindo o olhar global de cada neurônio por uma **lupa deslizante**:
+
+- **Convolução (o estêncil local):** Um pequeno núcleo (*kernel*) de tamanho $5 \times 5$ desliza passo a passo sobre a grade da imagem. Em cada parada, ele calcula o produto escalar entre seus $25$ pesos e os $25$ pixels daquela vizinhança imediata. Como a janela respeita a geometria 2D, pixels vizinhos na horizontal, vertical e diagonal interagem diretamente antes de qualquer achatamento.
+- **Compartilhamento de pesos (*weight sharing*):** Em vez de aprender um detector de borda diferente para o canto superior esquerdo e outro para o centro da imagem, o mesmo filtro de $25$ pesos varre a imagem inteira. Fisicamente, isso impõe uma **simetria de conservação por translação**: um arco ou uma quina continuam sendo o mesmo traço geométrico onde quer que apareçam no quadro $28 \times 28$.
+- **Pooling (subamostragem):** Após a convolução e a ativação ReLU, aplico `MaxPool2d(2, 2)` com passo $2$, dividindo a altura e a largura pela metade e retendo apenas o maior sinal de cada bloco $2 \times 2$.
+
+Durante a concepção desta etapa, esbarrei em duas dúvidas conceituais imediatas que precisei resolver antes de escrever a arquitetura:
+
+#### Tropeço Lógico 1: O Ceticismo do MaxPool ("Estamos jogando 75% dos dados no lixo?")
+
+**Minha dúvida inicial.** Ao olhar a operação de `MaxPool2d` em janelas $2 \times 2$, a reação instintiva foi de desconfiança: de cada $4$ valores calculados pelo filtro, guardamos apenas $1$ e descartamos os outros $3$. Se eliminarmos $75\%$ dos dados duas vezes seguidas (indo de $24 \times 24$ para $12 \times 12$, e depois de $8 \times 8$ para $4 \times 4$), não estaríamos destruindo a nitidez necessária para distinguir um $4$ de um $9$?
+
+**A correção física.** O pooling não descarta a presença do padrão, mas sim a **coordenada milimétrica exata** onde ele ocorreu. Depois que um filtro convolucional detectou um traço horizontal ou uma curvatura fechada (gerando um valor positivo alto naquele mapa de ativação), o que importa para a classificação é saber *que a feição existe naquela região*, e não se ela caiu no pixel $(10, 14)$ ou $(11, 15)$. Reter o máximo preserva o sinal mais forte da vizinhança e produz **invariância local a pequenas translações e inclinações caligráficas**, ao mesmo tempo em que reduz o mapa espacial para que a convolução seguinte enxergue uma fração maior do dígito inteiro (aumento do campo receptivo).
+
+#### Tropeço Lógico 2: A Geometria 3D dos Canais ("O filtro da segunda convolução não tem só 25 pesos?")
+
+**Minha dúvida inicial.** Na primeira camada (`1 -> 6`), temos $6$ filtros de tamanho $5 \times 5$, resultando em $6 \times (25 + 1) = 156$ parâmetros. Ao passar para a segunda convolução (`6 -> 16`), calculei intuitivamente que cada filtro teria novamente $25 + 1 = 26$ parâmetros, achando que os $16$ filtros custariam $416$ pesos.
+
+**A correção geométrica.** Esse cálculo trata a saída da primeira camada como se fosse uma única folha plana. Na prática, o primeiro bloco entrega um **volume de $6$ mapas de características** com formato $(6, 12, 12)$. Cada um dos $16$ filtros da segunda convolução precisa combinar informação de todos os $6$ canais simultaneamente; logo, ele não é um quadrado 2D, mas um **paralelepípedo 3D de dimensões $5 \times 5 \times 6 = 150$ pesos** (somados a $1$ bias). A segunda convolução custa, portanto, $16 \times (150 + 1) = 2.416$ parâmetros.
+
+---
+
+### 4.19. Anatomia da LeNet (`cnn_v1`), Armadilha do Softmax Duplo e o Gargalo Denso (Seção III.B)
+
+Seguindo a linhagem clássica de LeCun et al. (1998) e o enunciado da Seção III.B, implementei a classe `LeNet` em [`models/cnn.py`](models/cnn.py) com dois blocos convolucionais seguidos de três camadas lineares:
+
+$$(1, 28, 28) \xrightarrow{\text{Conv1 } (5\times 5)} (6, 24, 24) \xrightarrow{\text{Pool1 } (2\times 2)} (6, 12, 12) \xrightarrow{\text{Conv2 } (5\times 5)} (16, 8, 8) \xrightarrow{\text{Pool2 } (2\times 2)} (16, 4, 4) \xrightarrow{\text{Flatten}} 256 \to 120 \to 84 \to 10$$
+
+#### Tropeço Lógico 3: A Armadilha do Softmax Duplo
+
+**Minha dúvida inicial.** Como o enunciado trata da classificação probabilística em $10$ classes, a tentação imediata ao escrever o `forward()` da `LeNet` foi encerrar a rede com `nn.Softmax(dim=-1)`.
+
+**A correção numérica.** No PyTorch, `nn.CrossEntropyLoss()` já combina `LogSoftmax` e `NLLLoss` em uma única operação estável (via identidade *log-sum-exp*). Se o `forward()` aplicasse `Softmax` antes, a função de perda aplicaria um segundo `LogSoftmax` sobre probabilidades já comprimidas em $[0, 1]$, achatando as diferenças entre classes e degradando os gradientes. Por isso, a `LeNet` — assim como o `MLP` das linhas v4 e v5 — devolve **logits puros** no `forward()`.
+
+#### Diagnóstico do Gargalo Paramétrico
+
+Ao somar os parâmetros treináveis camada por camada em `LeNet.resumo_parametros()`, surgiu um contraste revelador em relação ao MLP campeão do v5 ($784 \to 512 \to 10$, com **$407.050$** parâmetros):
+
+| Bloco / Camada | Formato dos Pesos | Parâmetros | Fração da LeNet |
+| :--- | :--- | :---: | :---: |
+| `Conv1` ($1 \to 6$, $5\times 5$) | $(6, 1, 5, 5) + 6$ | $156$ | $0{,}35\%$ |
+| `Conv2` ($6 \to 16$, $5\times 5$) | $(16, 6, 5, 5) + 16$ | $2.416$ | $5{,}44\%$ |
+| **Subtotal Convolucional** | — | **$2.572$** | **$5{,}79\%$** |
+| `Linear 1` ($256 \to 120$) | $(120, 256) + 120$ | $30.840$ | **$69{,}42\%$** |
+| `Linear 2` ($120 \to 84$) | $(84, 120) + 84$ | $10.164$ | $22{,}88\%$ |
+| `Linear 3` ($84 \to 10$) | $(10, 84) + 10$ | $850$ | $1{,}91\%$ |
+| **Subtotal Linear (Denso)** | — | **$41.854$** | **$94{,}21\%$** |
+| **Total LeNet** | — | **$44.426$** | **$100{,}00\%$** |
+
+Dois fatos saltam dessa tabela:
+1. A `LeNet` inteira tem **$44.426$ parâmetros** — menos de $11\%$ do tamanho do MLP campeão ($407.050$ parâmetros, uma redução de $89{,}1\%$).
+2. Quase todo o custo paramétrico da `LeNet` não está nas convoluções (que gastam apenas $2.572$ pesos, ou $5{,}79\%$), mas na **ponte densa de entrada do classificador** (`Linear 256 -> 120`), que sozinha concentra $69{,}42\%$ de todos os pesos da rede.
+
+**Blindagem TDD (`tests/test_cnn.py`).** Criei $6$ testes estruturais automatizados validando: (i) os shapes intermediários exatos de cada camada; (ii) a contagem analítica de parâmetros por bloco e a razão de gargalo na `fc1`; (iii) a saída em logits puros; (iv) fluxo de gradientes não-nulos em todas as camadas; (v) sensibilidade da CNN à permutação fixa dos pixels (provando que ela de fato depende da topologia espacial).
+
 ---
 
 ## 5. Log de Atividades
@@ -1055,3 +1114,4 @@ A camada linear $\mathbf{W}\mathbf{x}$ trata cada entrada como uma coluna indepe
 | **09/11/2026 (Tarde)** | Discrepância das figuras antigas e criação do v6 | Constatação de que as figuras e os checkpoints das seções 4.8 a 4.13 não estão no repositório (seção 4.13.7). Criação de `mlp_v6_treinar.py` (`--perda ce|mse`, semente, melhor checkpoint), `mlp_v6_testar.py`, `mlp_v6_selecionar.py`, `executar_bateria_v6.sh` e `graficos_mlp.py`; 12 testes novos (seção 4.17). Bateria ainda por rodar. |
 | **09/11/2026 (Noite)** | Estudo dirigido: ReLU morta, saturação e escala | Reimplementação da página com treino de verdade, matrizes editáveis, dummy +1 e escolha de ativação (ReLU, tanh, logística). Medidas (`tests/estudo_dirigido_medidas.js`): a ReLU nasce morta em cerca de 50% dos sorteios; com $x$ até 20, 83% dos neurônios tanh e 68% dos logísticos saturam; alvo no limite da faixa da tanh leva 999 passos contra 40 com alvo 0,5 (seção 4.6.1). |
 | **09/11/2026 (Tarde)** | Por que o MLP ignora a estrutura espacial | Minha analogia das fitas: cortar a imagem em linhas e colar uma atrás da outra mantém a vizinhança horizontal e desfaz a vertical (seção 4.16). |
+| **13/11/2026** | Fundamentação da Convolução e LeNet (`models/cnn.py`) | Redação das Seções 4.18 e 4.19 (lupa deslizante, weight sharing e pooling) com resolução dos tropeços lógicos (ceticismo do MaxPool, geometria 3D $5\times 5\times 6$ dos filtros e armadilha do Softmax duplo). Implementação de `models/cnn.py` ($44.426$ parâmetros, $69{,}42\%$ concentrados na `fc1`) e $6$ testes estruturais aprovados em `tests/test_cnn.py`. |
