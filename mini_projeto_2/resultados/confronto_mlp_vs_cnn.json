@@ -1,0 +1,212 @@
+{
+  "mlp": {
+    "checkpoint": "mlp_treinado_v5_e50_b256_lr0.1_m0.9_h512_s1_melhor.pth",
+    "parametros": 407050,
+    "acuracia_teste_pct": 98.19,
+    "erros_teste": 181,
+    "perda_teste": 0.06039,
+    "macro_precisao_pct": 98.1937,
+    "macro_recall_pct": 98.1707,
+    "macro_f1_pct": 98.1809,
+    "tempo_treino_s": 53.03,
+    "epoca_salva": 7,
+    "tempo_inferencia_s": 0.1163,
+    "top_confusoes": [
+      [
+        10,
+        9,
+        4
+      ],
+      [
+        9,
+        4,
+        9
+      ],
+      [
+        8,
+        5,
+        3
+      ],
+      [
+        7,
+        7,
+        1
+      ],
+      [
+        6,
+        6,
+        4
+      ]
+    ]
+  },
+  "cnn": {
+    "checkpoint": "cnn_treinado_v1_e30_b256_lr0.02_m0.9_s1_melhor.pth",
+    "parametros": 44426,
+    "acuracia_teste_pct": 98.98,
+    "erros_teste": 102,
+    "perda_teste": 0.03575,
+    "macro_precisao_pct": 98.9871,
+    "macro_recall_pct": 98.9624,
+    "macro_f1_pct": 98.9728,
+    "tempo_treino_s": 85.84,
+    "epoca_salva": 11,
+    "tempo_inferencia_s": 0.241,
+    "top_confusoes": [
+      [
+        8,
+        5,
+        3
+      ],
+      [
+        8,
+        7,
+        2
+      ],
+      [
+        6,
+        9,
+        7
+      ],
+      [
+        5,
+        4,
+        9
+      ],
+      [
+        5,
+        6,
+        0
+      ]
+    ]
+  },
+  "discordancia": {
+    "ambos_acertam": 9780,
+    "cnn_corrige_mlp": 118,
+    "mlp_acerta_cnn_erra": 39,
+    "ambos_erram": 63,
+    "indices_cnn_corrige_mlp": [
+      321,
+      381,
+      447,
+      720,
+      813,
+      882,
+      951,
+      1014,
+      1156,
+      1181,
+      1182,
+      1194,
+      1224,
+      1260,
+      1328,
+      1378,
+      1395,
+      1444,
+      1500,
+      1522,
+      1549,
+      1609,
+      1621,
+      1681
+    ],
+    "indices_ambos_erram": [
+      247,
+      259,
+      340,
+      445,
+      449,
+      582,
+      583,
+      646,
+      659,
+      684,
+      947,
+      1039,
+      1112,
+      1226,
+      1232,
+      1247,
+      1319,
+      1393,
+      1414,
+      1530,
+      1901,
+      1941,
+      2035,
+      2130
+    ]
+  },
+  "pares_cronicos": [
+    {
+      "real": 9,
+      "pred": 4,
+      "mlp": 10,
+      "cnn": 4,
+      "delta": -6
+    },
+    {
+      "real": 4,
+      "pred": 9,
+      "mlp": 9,
+      "cnn": 5,
+      "delta": -4
+    },
+    {
+      "real": 5,
+      "pred": 3,
+      "mlp": 8,
+      "cnn": 8,
+      "delta": 0
+    },
+    {
+      "real": 3,
+      "pred": 5,
+      "mlp": 3,
+      "cnn": 2,
+      "delta": -1
+    },
+    {
+      "real": 7,
+      "pred": 1,
+      "mlp": 7,
+      "cnn": 1,
+      "delta": -6
+    },
+    {
+      "real": 7,
+      "pred": 2,
+      "mlp": 6,
+      "cnn": 8,
+      "delta": 2
+    },
+    {
+      "real": 7,
+      "pred": 9,
+      "mlp": 5,
+      "cnn": 0,
+      "delta": -5
+    },
+    {
+      "real": 6,
+      "pred": 4,
+      "mlp": 6,
+      "cnn": 0,
+      "delta": -6
+    },
+    {
+      "real": 2,
+      "pred": 8,
+      "mlp": 3,
+      "cnn": 2,
+      "delta": -1
+    },
+    {
+      "real": 8,
+      "pred": 3,
+      "mlp": 5,
+      "cnn": 1,
+      "delta": -4
+    }
+  ]
+}

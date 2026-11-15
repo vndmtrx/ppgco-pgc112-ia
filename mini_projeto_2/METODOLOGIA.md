@@ -1076,13 +1076,13 @@ Dois fatos saltam dessa tabela:
 1. A `LeNet` inteira tem **$44.426$ parâmetros** — menos de $11\%$ do tamanho do MLP campeão ($407.050$ parâmetros, uma redução de $89{,}1\%$).
 2. Quase todo o custo paramétrico da `LeNet` não está nas convoluções (que gastam apenas $2.572$ pesos, ou $5{,}79\%$), mas na **ponte densa de entrada do classificador** (`Linear 256 -> 120`), que sozinha concentra $69{,}42\%$ de todos os pesos da rede.
 
-**Blindagem TDD (`tests/test_cnn.py`).** Criei $6$ testes estruturais automatizados validando: (i) os shapes intermediários exatos de cada camada; (ii) a contagem analítica de parâmetros por bloco e a razão de gargalo na `fc1`; (iii) a saída em logits puros; (iv) fluxo de gradientes não-nulos em todas as camadas; (v) sensibilidade da CNN à permutação fixa dos pixels (provando que ela de fato depende da topologia espacial).
+**Blindagem TDD (`tests/test_cnn.py`).** Criei $8$ testes automatizados validando: (i) os shapes intermediários exatos de cada camada; (ii) a contagem analítica de parâmetros por bloco e a razão de gargalo na `fc1`; (iii) a saída em logits puros; (iv) fluxo de gradientes não-nulos em todas as camadas; (v) sensibilidade da CNN à permutação fixa dos pixels (provando que ela de fato depende da topologia espacial); (vi) o fluxo ponta a ponta sintético de `cnn_v1_treinar.py` e `cnn_v1_testar.py` com semente determinística e registro de abertura do teste; e (vii) o script `confronto_mlp_vs_cnn.py`.
 
 ---
 
 ### 4.20. Bateria Experimental da CNN (`cnn_v1`) no Padrão v5
 
-Seguindo a mesma disciplina de validação soberana do v5, escrevi [`cnn_v1_treinar.py`](cnn_v1_treinar.py), [`cnn_v1_selecionar.py`](cnn_v1_selecionar.py) e [`executar_bateria_cnn.sh`](executar_bateria_cnn.sh). O módulo [`graficos_mlp.py`](graficos_mlp.py) foi parametrizado com `prefixo_modelo="MLP"` para atender também à CNN sem duplicar código de plotagem.
+Seguindo a mesma disciplina de validação soberana do v5, escrevi [`cnn_v1_treinar.py`](cnn_v1_treinar.py), [`cnn_v1_testar.py`](cnn_v1_testar.py), [`cnn_v1_selecionar.py`](cnn_v1_selecionar.py) e [`executar_bateria_cnn.sh`](executar_bateria_cnn.sh). O módulo [`graficos_mlp.py`](graficos_mlp.py) foi parametrizado com `prefixo_modelo="MLP"` para atender também à CNN sem duplicar código de plotagem.
 
 Como o enunciado exige SGD, montei uma bateria controlada de $4$ configurações $\times$ $3$ sementes (`1`, `2` e `3`), com teto de $30$ épocas na CPU e salvamento estrito do checkpoint de **menor perda de validação**:
 1. `-b 256 -l 0.1 -m 0.9` (*ceteris paribus* exato com o MLP campeão do v5);
@@ -1103,6 +1103,66 @@ Dois achados saltam dessa bateria:
 
 1. **O colapso físico em $\eta = 0{,}1$ (semente 3):** Enquanto as sementes `1` e `2` com $\eta = 0{,}1$ atingiram $98{,}28\%$ e $98{,}33\%$, a **semente `3` colapsou logo na época 1 para $11{,}29\%$ de acurácia e perda $2{,}3027 \approx \ln 10$**, mantendo esse chute uniforme até a época $30$. A razão física está no compartilhamento de pesos: cada filtro da `Conv1` é aplicado em $24 \times 24 = 576$ posições da imagem, somando contribuições de gradiente de todo o quadro sobre os mesmos $25$ pesos. Com $\eta = 0{,}1$ e momento $0{,}9$, um passo inicial forte na direção errada empurrou as ativações para o semiespaço negativo da ReLU, zerando os gradientes de forma irreversível (*Dying ReLU*, exatamente como observado no laboratório da seção 4.5).
 2. **Estabilidade extrema em $\eta = 0{,}02$:** Ao reduzir $\eta$ para $0{,}02$, as três sementes convergiram de forma praticamente idêntica ($98{,}73\%$, $98{,}69\%$ e $98{,}73\%$), com desvio-padrão de apenas **$0{,}02$ ponto percentual** e a menor perda média de validação ($0{,}0459$). Nota-se também o mesmo efeito de calibração da seção 4.15.4: na semente `1`, o mínimo de perda ocorre na época $11$ ($0{,}0459$ e $98{,}73\%$), mas a acurácia de validação ainda sobe até $99{,}07\%$ na época $30$ (com perda de $0{,}0576$). Mantive o critério pré-definido da menor perda na validação para preservar o protocolo.
+
+#### 4.20.2. Escolha pela Validação e Avaliação Única no Teste
+
+O script `cnn_v1_selecionar.py` elegeu **`e=30 b=256 lr=0.02 m=0.9 sgd`** pela validação. Abri o conjunto de teste **uma única vez** com o checkpoint `cnn_treinado_v1_e30_b256_lr0.02_m0.9_s1_melhor.pth`, registrado em `resultados/aberturas_teste.csv` (abertura nº 2 da história auditada, sendo a nº 1 a do MLP campeão):
+
+| Métrica no teste (10.000 imagens) | Valor (LeNet) |
+| :--- | :---: |
+| Acurácia | **$98{,}98\%$** ($102$ erros) |
+| Perda média (entropia cruzada) | **$0{,}03575$** |
+| Precisão macro | $98{,}99\%$ |
+| Revocação macro | $98{,}96\%$ |
+| F1 macro | **$98{,}97\%$** |
+| Tempo de inferência (10k imagens) | $0{,}168\text{ s}$ |
+
+---
+
+### 4.21. Confronto MLP Campeão (v5) vs. CNN LeNet (`cnn_v1`) e Análise Morfológica dos Erros (Seção III.C)
+
+Com ambos os modelos eleitos pela validação e avaliados uma única vez no teste oficial, executei [`confronto_mlp_vs_cnn.py`](confronto_mlp_vs_cnn.py) para comparar desempenho, parâmetros, tempo de treino e o comportamento erro a erro (`resultados/confronto_mlp_vs_cnn.json` e figuras em `figuras/confronto_mlp_vs_cnn/`).
+
+#### 4.21.1. Comparação Quantitativa Direta
+
+| Métrica | MLP Campeão (`784 -> 512 -> 10`) | CNN LeNet (`cnn_v1`) | Diferença (CNN vs. MLP) |
+| :--- | :---: | :---: | :---: |
+| **Parâmetros treináveis** | $407.050$ | **$44.426$** | **$-89{,}1\%$** ($9{,}16\times$ menor) |
+| **Acurácia no teste (10k)** | $98{,}19\%$ | **$98{,}98\%$** | **$+0{,}79$ p.p.** |
+| **Total de erros no teste** | $181$ | **$102$** | **$-79$ erros ($-43{,}6\%$)** |
+| **Macro-F1 no teste** | $98{,}18\%$ | **$98{,}97\%$** | **$+0{,}79$ p.p.** |
+| **Perda média no teste** | $0{,}06039$ | **$0{,}03575$** | **$-40{,}8\%$** |
+| **Tempo total de treino (CPU)** | $53{,}03\text{ s}$ ($50$ épocas) | $85{,}84\text{ s}$ ($30$ épocas) | $+61{,}9\%$ (mais lento) |
+| **Tempo por época (CPU)** | $\approx 1{,}06\text{ s}$ | $2{,}86\text{ s}$ | $2{,}70\times$ maior |
+
+**Leitura de engenharia do trade-off parâmetros vs. tempo:** A LeNet atinge quase metade dos erros do MLP usando cerca de um nono dos parâmetros, mas leva $2{,}70\times$ mais tempo por época na CPU. Isso se explica pela intensidade aritmética por peso: em uma camada densa cada peso entra em apenas uma multiplicação por imagem, ao passo que um filtro $5 \times 5$ da `Conv1` é multiplicado $24 \times 24 = 576$ vezes por imagem ao deslizar pela grade 2D. O compartilhamento de pesos troca memória e graus de liberdade livres por reuso computacional sobre a topologia espacial.
+
+#### 4.21.2. Discordância Amostra por Amostra e Redução das Confusões Crônicas
+
+Cruzando as predições individuais nas $10.000$ imagens de teste:
+- **Ambos acertam:** $9.780$ imagens.
+- **CNN corrige o MLP:** **$118$ imagens** em que o MLP errou e a LeNet acertou.
+- **MLP acerta e CNN erra:** $39$ imagens.
+- **Ambos erram:** $63$ imagens (núcleo duro de caligrafias genuinamente ambíguas).
+
+Comparando os pares de dígitos mais confundidos entre os dois modelos (`confronto_pares_cronicos.png` e `confronto_diferenca_confusao.png`):
+
+| Par (Real $\to$ Predito) | MLP Campeão | CNN LeNet | Variação |
+| :--- | :---: | :---: | :---: |
+| $9 \to 4$ | $10$ | $4$ | **$-6$** ($-60\%$) |
+| $4 \to 9$ | $9$ | $5$ | **$-4$** ($-44\%$) |
+| $7 \to 1$ | $7$ | $1$ | **$-6$** ($-86\%$) |
+| $7 \to 9$ | $5$ | $0$ | **$-5$** ($-100\%$) |
+| $6 \to 4$ | $6$ | $0$ | **$-6$** ($-100\%$) |
+| $8 \to 3$ | $5$ | $1$ | **$-4$** ($-80\%$) |
+| $5 \to 3$ | $8$ | $8$ | $0$ (empate) |
+| $7 \to 2$ | $6$ | $8$ | $+2$ |
+
+**Por que a CNN desempatou (inspeção visual em `confronto_cnn_corrige_mlp.png`):**
+Observando a galeria real das imagens em que a LeNet corrigiu o MLP, vê-se claramente o efeito da invariância local à translação e da extração de contornos 2D:
+1. **Dígitos $7$ com corte horizontal e $6$ estreitos:** O MLP usa pesos posicionais rígidos; quando um $7$ traz o traço horizontal no meio da haste, pixels centrais do $8$ ou do $9$ acendem e enganam a camada densa ($7 \to 9$ cai de $5$ para $0$). Da mesma forma, um $6$ muito estreito e inclinado perde a associação espacial com o laço inferior no vetor achatado e vira $1$ para o MLP, enquanto os filtros $5 \times 5$ da LeNet detectam o arco fechado na base independentemente da inclinação.
+2. **Deslocamentos laterais em $2$ e $3$:** Imagens ligeiramente deslocadas para a esquerda ou com cauda longa confundem os pesos fixos do MLP ($2 \to 7$, $3 \to 7$, $2 \to 4$), mas são reconhecidas corretamente pela LeNet porque o mesmo filtro varre todas as colunas e o `MaxPool` absorve pequenos desvios de posição.
+3. **O limite que persiste ($5 \to 3$ e $7 \to 2$):** O par $5 \to 3$ empata em $8$ erros em ambos os modelos. Como o bojo inferior é praticamente idêntico nos dois dígitos e a diferença mora em poucos pixels na quina superior esquerda do $5$, quando a escrita é rápida ou suavizada o próprio padrão visual se torna indistinguível mesmo com filtros convolucionais de $5 \times 5$.
 
 ---
 
@@ -1142,3 +1202,4 @@ Dois achados saltam dessa bateria:
 | **09/11/2026 (Tarde)** | Por que o MLP ignora a estrutura espacial | Minha analogia das fitas: cortar a imagem em linhas e colar uma atrás da outra mantém a vizinhança horizontal e desfaz a vertical (seção 4.16). |
 | **13/11/2026** | Fundamentação da Convolução e LeNet (`models/cnn.py`) | Redação das Seções 4.18 e 4.19 (lupa deslizante, weight sharing e pooling) com resolução dos tropeços lógicos (ceticismo do MaxPool, geometria 3D $5\times 5\times 6$ dos filtros e armadilha do Softmax duplo). Implementação de `models/cnn.py` ($44.426$ parâmetros, $69{,}42\%$ concentrados na `fc1`) e $6$ testes estruturais aprovados em `tests/test_cnn.py`. |
 | **14/11/2026** | Bateria experimental `cnn_v1` na CPU (validação) | Execução de $12$ treinos ($4$ configs $\times$ $3$ sementes) em `executar_bateria_cnn.sh` com teste lacrado. Diagnóstico de *Dying ReLU* em $\eta = 0{,}1$ (semente 3 travada em $11{,}29\%$) e eleição pela validação de `b=256, lr=0.02, m=0.9` ($98{,}72 \pm 0{,}02\%$, perda $0{,}0459$). |
+| **15/11/2026** | Teste único da LeNet e Confronto MLP vs. CNN | Avaliação única no teste (`aberturas_teste.csv` nº 2): **$98{,}98\%$ ($102$ erros)** e Macro-F1 **$98{,}97\%$**. Confronto direto (`confronto_mlp_vs_cnn.py`): CNN reduz parâmetros em $89{,}1\%$ ($44.426$ vs. $407.050$), corta erros em $43{,}6\%$ e corrige $118$ falhas do MLP ($9\to 4$, $7\to 1$, $7\to 9$, $6\to 4$). Suíte em `tests/test_cnn.py` ampliada para $8$ testes aprovados. |

@@ -102,6 +102,25 @@ python mlp_v6_selecionar.py
 python mlp_v6_testar.py -c <nome>_melhor.pth
 ```
 
+### 2.6. Linha CNN v1 (LeNet no padrão do v5)
+
+```bash
+# Treina a LeNet com SGD e salva o melhor checkpoint pela perda de validação
+python cnn_v1_treinar.py -e 30 -b 256 -l 0.05 -m 0.9 --seed 1
+
+# Bateria completa: 4 configurações x 3 sementes (só treino e validação)
+./executar_bateria_cnn.sh
+
+# Escolhe a configuração pela validação (média ± desvio entre sementes)
+python cnn_v1_selecionar.py
+
+# Abre o teste UMA vez no checkpoint eleito (registra em resultados/aberturas_teste.csv)
+python cnn_v1_testar.py -c <checkpoint_cnn_melhor.pth>
+
+# Confronto direto MLP Campeão (v5) vs. CNN LeNet (cnn_v1)
+python confronto_mlp_vs_cnn.py --cnn-checkpoint <checkpoint_cnn_melhor.pth>
+```
+
 ---
 
 ## 3. Roteiro e Status das Etapas do Projeto
@@ -134,14 +153,14 @@ O desenvolvimento está estruturado nas 5 etapas planejadas a partir do enunciad
   - [x] Estudo comparativo de hiperparâmetros (15 configurações: largura, profundidade, lote, momento, Adam/AdamW), com `mlp_v4_1_treinar.py`, `mlp_v4_2_treinar.py` e `executar_bateria.sh`; resultado na seção 4.14 da metodologia (uma semente, escolha feita sobre o teste).
   - [x] v5: melhor modelo pela validação, `--seed`, 3 sementes e teste aberto uma vez (`mlp_v5_*.py`, `executar_bateria_v5.sh`). Bateria de 15 configurações x 3 sementes na CPU; escolhida a camada única de 512 neurônios ($784 \to 512 \to 10$, 407.050 parâmetros), com **98,19% no teste (181 erros)**, F1 macro 98,18%.
 
-- [ ] **Etapa 4: CNN estilo LeNet (Seção III do Enunciado)**
-  - [ ] Implementar a arquitetura convolucional clássica em [`models/cnn.py`](./models/cnn.py).
-  - [ ] Treinamento com SGD e monitoramento das curvas de perda.
-  - [ ] Avaliação completa das métricas e matriz de confusão no teste.
+- [x] **Etapa 4: CNN estilo LeNet (Seção III do Enunciado)**
+  - [x] Implementar a arquitetura convolucional clássica em [`models/cnn.py`](./models/cnn.py) ($44.426$ parâmetros) e suíte TDD em [`tests/test_cnn.py`](./tests/test_cnn.py).
+  - [x] Bateria ética com SGD e 3 sementes ([`executar_bateria_cnn.sh`](./executar_bateria_cnn.sh)), elegendo `b=256, lr=0.02, m=0.9` pela validação ($98{,}72 \pm 0{,}02\%$).
+  - [x] Avaliação única e auditada no teste ([`cnn_v1_testar.py`](./cnn_v1_testar.py)): **98,98% no teste (102 erros)**, F1 macro **98,97%**, perda **0,03575**.
 
-- [ ] **Etapa 5: Comparação Sistemática (MLP vs. CNN) e Fechamento**
-  - [ ] Análise comparativa: Desempenho (acurácia/F1) $\times$ Número de parâmetros $\times$ Tempo de treino.
-  - [ ] Consolidação do [**METODOLOGIA.md**](./METODOLOGIA.md).
+- [x] **Etapa 5: Comparação Sistemática (MLP vs. CNN) e Fechamento**
+  - [x] Análise comparativa automatizada em [`confronto_mlp_vs_cnn.py`](./confronto_mlp_vs_cnn.py): redução de $89{,}1\%$ em parâmetros ($44.426$ vs. $407.050$), redução de $43{,}6\%$ nos erros ($102$ vs. $181$), $118$ correções sobre o MLP e painéis morfológicos em `figuras/confronto_mlp_vs_cnn/`.
+  - [x] Consolidação do [**METODOLOGIA.md**](./METODOLOGIA.md) (Seções 4.18 a 4.21 e Log de Atividades).
 
 ---
 
@@ -175,9 +194,15 @@ mini_projeto_2/
 ├── mlp_v6_testar.py               # v6: avalia no teste (perda lida do nome) e registra a abertura
 ├── mlp_v6_selecionar.py           # v6: escolhe pela validação e compara MSE x CE
 ├── executar_bateria_v6.sh         # v6: refaz a comparação MSE x CE (só treino e validação)
-├── graficos_mlp.py                # Gráficos de treino num módulo só (usado pelo v6)
+├── cnn_v1_treinar.py              # CNN v1 (LeNet): salva melhor checkpoint pela validação com --seed
+├── cnn_v1_testar.py               # CNN v1: avalia no teste e registra em aberturas_teste.csv
+├── cnn_v1_selecionar.py           # CNN v1: escolhe configuração pela validação entre sementes
+├── executar_bateria_cnn.sh        # Bateria CNN v1: 4 configurações x 3 sementes (só treino e validação)
+├── confronto_mlp_vs_cnn.py        # Confronto direto e morfológico MLP Campeão (v5) vs. LeNet (cnn_v1)
+├── graficos_mlp.py                # Gráficos de treino num módulo só (usado por v6 e cnn_v1)
 ├── models/
-│   └── mlp.py                     # Arquitetura MLP totalmente conectada com ReLU
+│   ├── mlp.py                     # Arquitetura MLP totalmente conectada com ReLU
+│   └── cnn.py                     # Arquitetura convolucional LeNet (Conv 5x5 + MaxPool + Linear)
 ├── data/                          # Binários baixados do MNIST (ignorado no git)
 ├── modelo/                        # Checkpoints (.pth), ainda não versionados
 │   ├── mlp_treinado_v4_2_*.pth    # 15 modelos da bateria v4.2 (última época)
@@ -200,6 +225,7 @@ mini_projeto_2/
 └── tests/
     ├── test_dataset.py            # Testes automatizados do pipeline de dados
     ├── test_mlp.py                # Testes automatizados da arquitetura MLP e persistência
+    ├── test_cnn.py                # Testes da LeNet: shapes, parâmetros 3D, logits, treino/confronto sintético
     ├── test_mlp_v6.py             # Testes do v6: perda MSE, ids, comparação MSE x CE e teste sintético
     ├── estudo_dirigido_motor.test.js   # Testes do motor da página (node; gradiente, Dying ReLU, tanh e logística)
     ├── estudo_dirigido_pagina.test.js  # Testes da página numa DOM simulada (precisa do jsdom; pula sem ele)

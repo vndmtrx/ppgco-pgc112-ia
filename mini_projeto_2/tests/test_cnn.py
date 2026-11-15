@@ -130,3 +130,122 @@ def test_sensibilidade_a_estrutura_espacial():
         out_orig = modelo(img)
         out_perm = modelo(img_perm)
     assert not torch.allclose(out_orig, out_perm, atol=1e-4)
+
+
+def test_cnn_v1_treinar_e_testar_sintetico(tmp_path, monkeypatch):
+    """Valida o fluxo completo de treino com semente fixa, melhor checkpoint e registro no teste."""
+    import csv
+    from torch.utils.data import TensorDataset
+    import cnn_v1_treinar
+    import cnn_v1_testar
+
+    torch.manual_seed(99)
+    ds_tr = TensorDataset(torch.randn(64, 1, 28, 28), torch.randint(0, 10, (64,)))
+    ds_vl = TensorDataset(torch.randn(32, 1, 28, 28), torch.randint(0, 10, (32,)))
+    ds_ts = TensorDataset(torch.randn(32, 1, 28, 28), torch.randint(0, 10, (32,)))
+
+    monkeypatch.setattr(cnn_v1_treinar, "get_mnist_datasets", lambda: (ds_tr, ds_vl, ds_ts))
+    monkeypatch.setattr(cnn_v1_testar, "get_mnist_datasets", lambda: (ds_tr, ds_vl, ds_ts))
+
+    p_mod = tmp_path / "modelo"
+    p_fig = tmp_path / "figuras"
+    p_res = tmp_path / "resultados"
+
+    res1 = cnn_v1_treinar.executar_treinamento_cnn(
+        num_epocas=3,
+        batch_size=16,
+        lr=0.05,
+        momentum=0.9,
+        otimizador_nome="sgd",
+        seed=1,
+        gerar_graficos=True,
+        pasta_modelo=p_mod,
+        pasta_figuras=p_fig,
+        pasta_resultados=p_res,
+    )
+    res2 = cnn_v1_treinar.executar_treinamento_cnn(
+        num_epocas=3,
+        batch_size=16,
+        lr=0.05,
+        momentum=0.9,
+        otimizador_nome="sgd",
+        seed=1,
+        gerar_graficos=False,
+        pasta_modelo=p_mod,
+        pasta_figuras=p_fig,
+        pasta_resultados=p_res,
+    )
+
+    assert res1["perda_val_salva"] == pytest.approx(res2["perda_val_salva"])
+    assert res1["parametros"] == 44426
+
+    ckpt = p_mod / f"{res1['id']}_melhor.pth"
+    assert ckpt.exists()
+
+    # Garante que os 5 gráficos de treino foram criados
+    subpasta_fig = p_fig / cnn_v1_testar.nome_da_pasta_de_figuras_cnn(ckpt)
+    assert len(list(subpasta_fig.glob("*.png"))) == 5
+
+    # Testa carregamento e registro de abertura
+    out_teste = cnn_v1_testar.executar_teste_cnn(
+        str(ckpt),
+        gerar_graficos=True,
+        pasta_figuras=p_fig,
+        pasta_resultados=p_res,
+    )
+    assert 0.0 <= out_teste["acuracia"] <= 1.0
+    assert len(list(subpasta_fig.glob("*.png"))) == 9
+
+    with open(p_res / "aberturas_teste.csv", newline="", encoding="utf-8") as f:
+        linhas = list(csv.DictReader(f))
+    assert len(linhas) == 1
+    assert linhas[0]["checkpoint"] == ckpt.name
+
+
+def test_confronto_mlp_vs_cnn_sintetico(tmp_path, monkeypatch):
+    """Valida o script de confronto com dados sintéticos, JSON de saída e 4 figuras."""
+    import json
+    from torch.utils.data import TensorDataset
+    import confronto_mlp_vs_cnn
+
+    disc = confronto_mlp_vs_cnn.analisar_discordancia(
+        reais=[0, 1, 2, 3],
+        pred_mlp=[0, 9, 2, 8],
+        pred_cnn=[0, 1, 7, 8],
+    )
+    assert disc["ambos_acertam"] == [0]
+    assert disc["cnn_corrige_mlp"] == [1]
+    assert disc["mlp_acerta_cnn_erra"] == [2]
+    assert disc["ambos_erram"] == [3]
+
+    torch.manual_seed(5)
+    ds_ts = TensorDataset(torch.randn(32, 1, 28, 28), torch.randint(0, 10, (32,)))
+    monkeypatch.setattr(confronto_mlp_vs_cnn, "get_mnist_datasets", lambda: (None, None, ds_ts))
+
+    ckpt_mlp = tmp_path / "mlp_treinado_v5_e1_b64_lr0.1_h32_s1_melhor.pth"
+    ckpt_cnn = tmp_path / "cnn_treinado_v1_e1_b64_lr0.05_m0.9_s1_melhor.pth"
+    torch.save(MLP(784, [32], 10).state_dict(), ckpt_mlp)
+    torch.save(LeNet().state_dict(), ckpt_cnn)
+
+    p_fig = tmp_path / "figuras"
+    p_res = tmp_path / "resultados"
+    rel = confronto_mlp_vs_cnn.executar_confronto(
+        mlp_checkpoint=str(ckpt_mlp),
+        cnn_checkpoint=str(ckpt_cnn),
+        gerar_graficos=True,
+        pasta_figuras=p_fig,
+        pasta_resultados=p_res,
+    )
+
+    assert rel["mlp"]["parametros"] == 784 * 32 + 32 + 32 * 10 + 10
+    assert rel["cnn"]["parametros"] == 44426
+    assert (p_res / "confronto_mlp_vs_cnn.json").exists()
+    with open(p_res / "confronto_mlp_vs_cnn.json", encoding="utf-8") as f:
+        salvo = json.load(f)
+    assert salvo["cnn"]["parametros"] == 44426
+    pasta_confronto = p_fig / "confronto_mlp_vs_cnn"
+    assert (pasta_confronto / "confronto_eficiencia.png").exists()
+    assert (pasta_confronto / "confronto_pares_cronicos.png").exists()
+    assert (pasta_confronto / "confronto_diferenca_confusao.png").exists()
+
+
