@@ -51,23 +51,25 @@ python dataset.py
 
 ### 2.3. Execução Alternativa via Docker
 
-Caso prefira executar sem o ambiente virtual local, utilize a imagem oficial Jupyter/PyTorch já configurada:
+Caso prefira executar sem o ambiente virtual local, utilize a imagem oficial Jupyter/PyTorch a partir da pasta `mini_projeto_2/`:
 
 ```bash
-# Executar a suíte de testes via contêiner
+# Executar a suíte completa de testes via contêiner (dentro de mini_projeto_2/)
 docker run --rm \
-  -v $HOME/du/dev/pytorch/ppgco-pgc112-ia/mini_projeto_2:/home/jovyan/work \
+  -v "$(pwd):/home/jovyan/work" \
   -w /home/jovyan/work \
   quay.io/jupyter/pytorch-notebook:latest \
-  python3 -m unittest discover -s tests -v
+  bash -c "pip install -q pytest && pytest -v"
 
-# Executar o pipeline de dados
+# Executar o pipeline de dados (baixa MNIST para data/ caso não exista)
 docker run --rm \
-  -v $HOME/du/dev/pytorch/ppgco-pgc112-ia/mini_projeto_2:/home/jovyan/work \
+  -v "$(pwd):/home/jovyan/work" \
   -w /home/jovyan/work \
   quay.io/jupyter/pytorch-notebook:latest \
   python3 dataset.py
 ```
+
+*(Os pesos binários `.pth` em `modelo/` não são versionados no Git por política do `.gitignore`; os resultados e figuras estão em `resultados/` e `figuras/`, e os checkpoints podem ser regenerados pelos scripts `./executar_bateria_v5.sh` e `./executar_bateria_cnn.sh`.)*
 
 ### 2.4. Linha v5 (melhor modelo pela validação)
 
@@ -161,6 +163,7 @@ O desenvolvimento está estruturado nas 5 etapas planejadas a partir do enunciad
 - [x] **Etapa 5: Comparação Sistemática (MLP vs. CNN) e Fechamento**
   - [x] Análise comparativa automatizada em [`confronto_mlp_vs_cnn.py`](./confronto_mlp_vs_cnn.py): redução de $89{,}1\%$ em parâmetros ($44.426$ vs. $407.050$), redução de $43{,}6\%$ nos erros ($102$ vs. $181$), $118$ correções sobre o MLP e painéis morfológicos em `figuras/confronto_mlp_vs_cnn/`.
   - [x] Consolidação do [**METODOLOGIA.md**](./METODOLOGIA.md) (Seções 4.18 a 4.21 e Log de Atividades).
+  - [x] Redação do relatório em LaTeX em [`main.tex`](./main.tex) (template `abntex2` em duas colunas).
 
 ---
 
@@ -169,6 +172,8 @@ O desenvolvimento está estruturado nas 5 etapas planejadas a partir do enunciad
 ```text
 mini_projeto_2/
 ├── 03-projeto-visao-simples.pdf   # Especificação oficial do mini-projeto
+├── main.tex                       # Relatório acadêmico em LaTeX (template abntex2, 6 páginas)
+├── main.pdf                       # Relatório final compilado (MLP vs. LeNet no MNIST)
 ├── README.md                      # Guia rápido de execução e status do projeto
 ├── METODOLOGIA.md                 # Diário metodológico e fundamentação teórica
 ├── requirements.txt               # Dependências do projeto (PyTorch, Torchvision, etc.)
@@ -204,9 +209,9 @@ mini_projeto_2/
 │   ├── mlp.py                     # Arquitetura MLP totalmente conectada com ReLU
 │   └── cnn.py                     # Arquitetura convolucional LeNet (Conv 5x5 + MaxPool + Linear)
 ├── data/                          # Binários baixados do MNIST (ignorado no git)
-├── modelo/                        # Checkpoints (.pth), ainda não versionados
-│   ├── mlp_treinado_v4_2_*.pth    # 15 modelos da bateria v4.2 (última época)
-│   └── mlp_treinado_v5_*_melhor.pth # v5: época de menor perda de validação
+├── modelo/                        # Checkpoints (.pth), não versionados no Git (.gitignore)
+│   ├── mlp_treinado_v5_*_melhor.pth # v5: época de menor perda de validação
+│   └── cnn_treinado_v1_*_melhor.pth # cnn_v1: checkpoints da LeNet pela validação
 ├── resultados/                    # v5: resumo_v5.csv, <id>.json por execução, aberturas_teste.csv
 ├── figuras/                       # Relatórios visuais em alta resolução (300 DPI)
 │   ├── distribuicao_classes.png   # Histograma de balanceamento de classes

@@ -44,9 +44,11 @@ Adotaremos apenas o conjunto mínimo e indispensável de ferramentas:
 Os experimentos e testes podem ser validados utilizando a imagem Jupyter/PyTorch oficial:
 
 ```bash
+# A partir da raiz do repositório ppgco-pgc112-ia
 docker run -it --rm \
   -p 8888:8888 \
-  -v $HOME/du/dev/pytorch:/home/jovyan/work \
+  -v "$(pwd):/home/jovyan/work" \
+  -w /home/jovyan/work \
   quay.io/jupyter/pytorch-notebook:latest
 ```
 
