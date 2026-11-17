@@ -1,0 +1,83 @@
+\PassOptionsToPackage{brazilian}{babel}
+\documentclass[
+	12pt,
+	a4paper,
+	article,
+	twocolumn
+]{abntex2}
+
+% --- Pacotes Básicos e Hifenação em Português ---
+\usepackage[brazilian]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{indentfirst}
+\usepackage{graphicx}
+\graphicspath{{figuras/}{./}}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	citecolor=blue,
+	urlcolor=blue
+}
+
+% Remove o título em língua estrangeira padrão do abntex2 article
+\renewcommand{\maketitlehookb}{}
+
+\titulo{Mini-projeto 3: Atenção e Transformers em Séries Temporais Climáticas}
+
+\autor{
+	Eduardo N. S. R.\\[0.2em]
+	\small PPGCO / PGC112 -- Faculdade de Computação (FACOM)\\
+	\small Universidade Federal de Uberlândia (UFU)\\
+	\small Repositório GitHub: \href{https://github.com/vndmtrx/ppgco-pgc112-ia}{\texttt{vndmtrx/ppgco-pgc112-ia}}
+}
+
+\data{Uberlândia -- MG, Brasil, 2026}
+
+\begin{document}
+\frenchspacing
+\SingleSpacing
+
+\maketitle
+
+\begin{abstract}
+Este resumo será redigido após a conclusão dos experimentos, sintetizando os principais achados, métricas de previsão e conclusões sobre o mecanismo de atenção em dados climáticos.
+\end{abstract}
+
+\section{Introdução e Dados}
+
+Esta seção será preenchida com a contextualização do conjunto de dados Jena Climate (2009--2016), a análise estatística exploratória das 14 variáveis meteorológicas, a justificativa da divisão cronológica entre treino e teste e a estrutura das janelas deslizantes de tempo.
+
+\section{Representação Densa e Arquitetura Transformer}
+
+Esta seção será preenchida com o detalhamento dos componentes do modelo: a projeção linear dos tokens multivariados, a formulação da codificação posicional, a arquitetura dos blocos codificadores de autoatenção (\textit{Multi-Head Attention}) e a definição fundamentada da função de perda.
+
+\section{Previsão Multivariada e Resultados}
+
+Esta seção será preenchida com as curvas de perda por época e a avaliação experimental das predições para os dois objetivos propostos: previsão do próximo passo ($t+1$) e previsão contínua do horizonte estendido de 24 horas.
+
+\section{Mapas de Atenção e Interpretabilidade}
+
+Esta seção será preenchida com a extração dos pesos de atenção das cabeças do codificador, a apresentação dos mapas de calor (\textit{heatmaps}) médios e a discussão física e meteorológica dos padrões temporais identificados.
+
+\section{Conclusão}
+
+Esta seção será preenchida com as considerações finais, limitações observadas e conclusões do trabalho.
+
+\begin{thebibliography}{99}
+
+\bibitem{vaswani2017}
+VASWANI, A. et al. Attention is all you need. In: \textbf{Advances in Neural Information Processing Systems (NeurIPS)}, v.~30, 2017.
+
+\bibitem{smola2023}
+ZHANG, A.; LIPTON, Z.~C.; LI, M.; SMOLA, A.~J. \textbf{Dive into Deep Learning}. Cambridge University Press, 2023. Disponível em: \url{https://d2l.ai/}.
+
+\end{thebibliography}
+
+\end{document}
